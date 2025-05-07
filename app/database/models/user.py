@@ -7,6 +7,7 @@ This model represents the 'user' table in the database.
 """
 
 from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy.orm import relationship
 from app.database.base import Base
 
 class User(Base):
@@ -30,7 +31,10 @@ class User(Base):
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
-    full_name = Column(String, nullable=True)
+    full_name = Column(String(100), nullable=True)
+
+    # Relationship to profile (one-to-one)
+    profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         """

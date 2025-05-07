@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from app.database.base import Base
 from app.database.session import engine
-from app.api.v1.endpoints import auth, user
+from app.api.v1.endpoints import auth, user, profile
+
+# Models for database creation
+from app.database.models.user import User as UserDB
+from app.database.models.profile import UserProfile as UserProfileDB
 
 # Initialize the FastAPI application
 # --------------------------------
@@ -24,8 +28,10 @@ Base.metadata.create_all(bind=engine)
 # Includes the endpoint routers from different modules:
 # - auth.router: Contains authentication-related endpoints (/login, /refresh-token, /check-token)
 # - user.router: Contains user management endpoints (/users, /users/me)
+# - profile.router: Contains profile management endpoints (/profiles/me, /profiles/me/resume)
 app.include_router(auth.router)
 app.include_router(user.router)
+app.include_router(profile.router)
 
 # To implement:
 # - /admin endpoints for admin-only operations 

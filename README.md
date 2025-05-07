@@ -82,6 +82,144 @@ Example of the response:
 }
 ```
 
+# Add User profile (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/profiles/me
+```
+Payload below as reference:
+```bash
+{
+  "age": 29,
+  "gender": "male",
+  "phone_number": "12345678",
+  "address": "123 singapore",
+  "city": "Singapore",
+  "country": "Singapore",
+  "postal_code": "123456"
+}
+```
+Example of the response:
+```bash
+{
+    "age": 29,
+    "gender": "male",
+    "phone_number": "12345678",
+    "address": "123 singapore",
+    "city": "Singapore",
+    "country": "Singapore",
+    "postal_code": "123456",
+    "id": 1,
+    "user_id": 1,
+    "headline": null,
+    "summary": null,
+    "current_position": null,
+    "current_company": null,
+    "years_of_experience": null,
+    "education": null,
+    "experience": null,
+    "skills": null,
+    "resume_url": null,
+    "resume_original_filename": null,
+    "preferred_job_titles": null,
+    "preferred_locations": null,
+    "preferred_salary": null,
+    "job_type_preferences": null,
+    "is_profile_public": true,
+    "is_resume_public": true,
+    "created_at": "2025-05-07T08:17:41.167078+07:00",
+    "updated_at": "2025-05-07T08:17:41.167078+07:00"
+}
+```
+
+# List User profile (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/profiles/me
+```
+Payload below as reference:
+```bash
+{
+  "age": 29,
+  "gender": "male",
+  "phone_number": "12345678",
+  "address": "123 singapore",
+  "city": "Singapore",
+  "country": "Singapore",
+  "postal_code": "123456",
+  "headline": "Hello this is a new headline"
+}
+```
+Example of the response:
+```bash
+{
+    "age": 29,
+    "gender": "male",
+    "phone_number": "12345678",
+    "address": "123 singapore",
+    "city": "Singapore",
+    "country": "Singapore",
+    "postal_code": "123456",
+    "id": 1,
+    "user_id": 1,
+    "headline": "Hello this is a new headline",
+    "summary": null,
+    "current_position": null,
+    "current_company": null,
+    "years_of_experience": null,
+    "education": null,
+    "experience": null,
+    "skills": null,
+    "resume_url": null,
+    "resume_original_filename": null,
+    "preferred_job_titles": null,
+    "preferred_locations": null,
+    "preferred_salary": null,
+    "job_type_preferences": null,
+    "is_profile_public": true,
+    "is_resume_public": true,
+    "created_at": "2025-05-07T08:17:41.167078+07:00",
+    "updated_at": "2025-05-07T08:21:44.239568+07:00"
+}
+```
+
+# Update User profile (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PUT` request to:
+```bash
+http://127.0.0.1:9000/profiles/me
+```
+Example of the response:
+```bash
+{
+    "age": 29,
+    "gender": "male",
+    "phone_number": "12345678",
+    "address": "123 singapore",
+    "city": "Singapore",
+    "country": "Singapore",
+    "postal_code": "123456",
+    "id": 1,
+    "user_id": 1,
+    "headline": null,
+    "summary": null,
+    "current_position": null,
+    "current_company": null,
+    "years_of_experience": null,
+    "education": null,
+    "experience": null,
+    "skills": null,
+    "resume_url": null,
+    "resume_original_filename": null,
+    "preferred_job_titles": null,
+    "preferred_locations": null,
+    "preferred_salary": null,
+    "job_type_preferences": null,
+    "is_profile_public": true,
+    "is_resume_public": true,
+    "created_at": "2025-05-07T08:17:41.167078+07:00",
+    "updated_at": "2025-05-07T08:17:41.167078+07:00"
+}
+```
 # Map
 ```authentication_service/
 ├── app/
