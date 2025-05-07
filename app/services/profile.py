@@ -5,6 +5,7 @@ from app.schemas.profile import UserProfileCreate, UserProfileUpdate, UserProfil
 from fastapi import UploadFile
 import os
 import uuid
+import aiofiles
 from datetime import datetime
 
 
@@ -43,8 +44,7 @@ class ProfileService:
         self.db.refresh(db_profile)
         return db_profile
 
-    def upload_resume(self, user_id: int, file: UploadFile, upload_dir: str) -> dict:
-        # Ensure upload directory exists
+    async def upload_resume(self, user_id: int, file: UploadFile, upload_dir: str) -> dict:
         os.makedirs(upload_dir, exist_ok=True)
         
         # Generate unique filename
@@ -52,26 +52,24 @@ class ProfileService:
         unique_filename = f"{uuid.uuid4()}{file_ext}"
         file_path = os.path.join(upload_dir, unique_filename)
         
-        # Save file
-        with open(file_path, "wb") as buffer:
-            buffer.write(file.file.read())
-        
-        # Update profile with resume info
-        db_profile = self.get_profile_by_user_id(user_id)
-        if not db_profile:
-            return {"message": "Profile not found", "resume_url": None, "filename": None}
-        
-        # If there's an old resume, delete it
-        if db_profile.resume_url and os.path.exists(db_profile.resume_url):
-            try:
-                os.remove(db_profile.resume_url)
-            except:
-                pass
+        # Save file asynchronously
+        async with aiofiles.open(file_path, 'wb') as buffer:
+            content = await file.read()
+            await buffer.write(content)
         
         # Update profile
-        db_profile.resume_url = file_path
-        db_profile.resume_original_filename = file.filename
-        self.db.commit()
+        db_profile = self.get_profile_by_user_id(user_id)
+        if db_profile:
+            # Remove old resume if exists
+            if db_profile.resume_url and os.path.exists(db_profile.resume_url):
+                try:
+                    os.remove(db_profile.resume_url)
+                except:
+                    pass
+            
+            db_profile.resume_url = file_path
+            db_profile.resume_original_filename = file.filename
+            self.db.commit()
         
         return {
             "message": "Resume uploaded successfully",
