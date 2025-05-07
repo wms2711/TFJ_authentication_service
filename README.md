@@ -55,3 +55,36 @@ GET http://127.0.0.1:9000/auth/check-token
     "valid": true,
     "user": "wms2711"
 }
+
+# Map
+authentication_service/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI app setup
+│   ├── config.py            # App configuration
+│   ├── dependencies.py      # App dependency injections
+│   ├── database/
+│   │   ├── __init__.py
+│   │   ├── base.py          # Base model
+│   │   ├── session.py       # Database session management
+│   │   └── models/
+│   │       └── user.py      # Database: User model
+│   ├── schemas/             # Pydantic models
+│   │   ├── __init__.py
+│   │   ├── user.py          # User Data Schemas
+│   │   └── token.py         # Authentication Token Schemas
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── auth.py          # Auth service
+│   │   └── user.py          # User service
+│   └── api/
+│       ├── __init__.py
+│       ├── v1/
+│           ├── __init__.py
+│           ├── endpoints/
+│               ├── __init__.py
+│               ├── auth.py  # Auth router
+│               └── user.py  # User router
+├── requirements.txt
+├── .env                     # Environment variables
+└── run.py                   # Application entry point for dev
