@@ -1,3 +1,12 @@
+"""
+Profile Management Service
+==========================
+
+Handles all business logic related to user profile operations:
+- Create, read, and update user profile
+- Upload and delete resume files
+"""
+
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.database.models.profile import UserProfile
@@ -8,16 +17,42 @@ import uuid
 import aiofiles
 from datetime import datetime
 
-
 class ProfileService:
+    """Main profiling service for managing user profiles."""
+
     def __init__(self, db: Session):
+        """
+        Initialize with database session.
+        
+        Args:
+            db: SQLAlchemy session for database operations
+        """
         self.db = db
 
     def get_profile_by_user_id(self, user_id: int) -> Optional[UserProfileInDB]:
+        """
+        Retrieve a user's profile by their user ID.
+        
+        Args:
+            user_id (int): ID of the user.
+        
+        Returns:
+            UserProfileInDB | None: Profile data or None if not found.
+        """
         profile = self.db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
         return profile
 
     def create_profile(self, user_id: int, profile_data: UserProfileCreate) -> UserProfileInDB:
+        """
+        Create a new profile for a user.
+        
+        Args:
+            user_id (int): ID of the user.
+            profile_data (UserProfileCreate): Profile data to be created.
+        
+        Returns:
+            UserProfileInDB: Created profile.
+        """
         now = datetime.utcnow()
         db_profile = UserProfile(
             user_id=user_id,
@@ -31,6 +66,16 @@ class ProfileService:
         return db_profile
 
     def update_profile(self, user_id: int, profile_data: UserProfileUpdate) -> Optional[UserProfileInDB]:
+        """
+        Update an existing user profile.
+        
+        Args:
+            user_id (int): ID of the user.
+            profile_data (UserProfileUpdate): Fields to update.
+        
+        Returns:
+            UserProfileInDB | None: Updated profile or None if not found.
+        """        
         db_profile = self.get_profile_by_user_id(user_id)
         if not db_profile:
             return None
@@ -45,6 +90,23 @@ class ProfileService:
         return db_profile
 
     async def upload_resume(self, user_id: int, file: UploadFile, upload_dir: str) -> dict:
+        """
+        Upload and associate a resume file with the user profile.
+        
+        - Saves the file with a unique name
+        - Replaces existing resume if any
+        
+        Args:
+            user_id (int): ID of the user.
+            file (UploadFile): Uploaded file object.
+            upload_dir (str): Directory to store uploaded resumes.
+        
+        Returns:
+            dict: Metadata of uploaded file.
+        """
+
+        # TODO: Safe as binary data in database? (Not recommended as perform bad at scale? might cause slow queries, inflate db size?) 
+        # or use storage system (cloud storage?) and save url of resume in database?
         os.makedirs(upload_dir, exist_ok=True)
         
         # Generate unique filename
@@ -67,6 +129,7 @@ class ProfileService:
                 except:
                     pass
             
+            db_profile.updated_at = datetime.utcnow()
             db_profile.resume_url = file_path
             db_profile.resume_original_filename = file.filename
             self.db.commit()
@@ -78,6 +141,15 @@ class ProfileService:
         }
 
     def delete_resume(self, user_id: int) -> bool:
+        """
+        Delete the resume file associated with a user's profile.
+        
+        Args:
+            user_id (int): ID of the user.
+        
+        Returns:
+            bool: True if deleted successfully, False otherwise.
+        """
         db_profile = self.get_profile_by_user_id(user_id)
         if not db_profile or not db_profile.resume_url:
             return False
@@ -90,13 +162,8 @@ class ProfileService:
                 pass
         
         # Update profile
+        db_profile.updated_at = datetime.utcnow()
         db_profile.resume_url = None
         db_profile.resume_original_filename = None
         self.db.commit()
         return True
-
-    def get_resume_path(self, user_id: int) -> Optional[str]:
-        db_profile = self.get_profile_by_user_id(user_id)
-        if not db_profile or not db_profile.resume_url:
-            return None
-        return db_profile.resume_url

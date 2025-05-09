@@ -1,4 +1,16 @@
+"""
+Profile Management Router
+========================
+
+Handles all profile-related endpoints including:
+- Profile creation (more in-depth information about users) and retrieval
+- Resume upload/download
+- Profile updates
+"""
+
+
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -13,11 +25,8 @@ from app.database.session import get_db
 from app.services.auth import AuthService
 from app.database.models.user import User
 from app.dependencies import get_current_user
-from fastapi.security import OAuth2PasswordBearer
 
-# Initialize OAuth2 scheme
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
+# Initialize router with prefix and tags for OpenAPI documentation
 router = APIRouter(
     prefix="/profiles",
     tags=["profiles"],
@@ -29,6 +38,24 @@ async def get_my_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Get current user's complete profile
+    
+    Flow:
+    1. Validates JWT from Authorization header
+    2. Retrieves profile for authenticated user
+    3. Returns full profile data
+    
+    Args:
+        current_user: Automatically injected from JWT
+        db: Active database session
+        
+    Returns:
+        UserProfileInDB: Complete profile information
+        
+    Raises:
+        HTTPException: 404 if profile not found
+    """
     profile_service = ProfileService(db)
     profile = profile_service.get_profile_by_user_id(current_user.id)
     if not profile:
@@ -45,6 +72,27 @@ async def create_my_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Create a new profile for current user
+    
+    Flow:
+    1. Validates user doesn't already have a profile
+    2. Creates new profile with provided data
+    3. Returns created profile
+    
+    Args:
+        profile_data: Basic profile information
+        current_user: Authenticated user from JWT
+        db: Active database session
+        
+    Returns:
+        UserProfileInDB: Newly created profile
+        
+    Raises:
+        HTTPException: 
+            - 400 if profile already exists
+            - 401 if not authenticated
+    """
     profile_service = ProfileService(db)
     existing_profile = profile_service.get_profile_by_user_id(current_user.id)
     if existing_profile:
@@ -62,6 +110,27 @@ async def update_my_profile(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Update current user's profile
+    
+    Flow:
+    1. Validates profile exists
+    2. Updates fields with provided data
+    3. Returns updated profile
+    
+    Args:
+        profile_data: Profile fields to update
+        current_user: Authenticated user from JWT
+        db: Active database session
+        
+    Returns:
+        UserProfileInDB: Updated profile information
+        
+    Raises:
+        HTTPException: 
+            - 404 if profile not found
+            - 401 if not authenticated
+    """
     profile_service = ProfileService(db)
     updated_profile = profile_service.update_profile(current_user.id, profile_data)
     if not updated_profile:
@@ -78,6 +147,28 @@ async def upload_my_resume(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Upload resume for current user
+    
+    Flow:
+    1. Validates file type (PDF/DOC/DOCX)
+    2. Saves file to server storage
+    3. Updates profile with resume metadata
+    
+    Args:
+        file: Resume file to upload
+        current_user: Authenticated user from JWT
+        db: Active database session
+        
+    Returns:
+        dict: Upload result with file metadata
+        
+    Raises:
+        HTTPException:
+            - 400 for invalid file types
+            - 401 if not authenticated
+            - 500 for upload failures
+    """
     if not file.filename.lower().endswith(('.pdf', '.doc', '.docx')):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -101,6 +192,25 @@ async def delete_my_resume(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Delete current user's resume
+    
+    Flow:
+    1. Removes resume file from storage
+    2. Clears resume metadata from profile
+    
+    Args:
+        current_user: Authenticated user from JWT
+        db: Active database session
+        
+    Returns:
+        None: 204 No Content on success
+        
+    Raises:
+        HTTPException:
+            - 404 if no resume exists
+            - 401 if not authenticated
+    """
     profile_service = ProfileService(db)
     if not profile_service.delete_resume(current_user.id):
         raise HTTPException(
@@ -115,16 +225,39 @@ async def download_my_resume(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    """
+    Download current user's resume
+    
+    Flow:
+    1. Checks if resume exists
+    2. Streams file directly to client
+    
+    Args:
+        current_user: Authenticated user from JWT
+        db: Active database session
+        
+    Returns:
+        FileResponse: Binary file stream with proper headers
+        
+    Raises:
+        HTTPException:
+            - 404 if no resume exists
+            - 401 if not authenticated
+    """
     profile_service = ProfileService(db)
-    resume_path = profile_service.get_resume_path(current_user.id)
-    if not resume_path:
+    profile = profile_service.get_profile_by_user_id(current_user.id)
+    
+    if not profile or not profile.resume_url:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Resume not found"
         )
     
-    # In production, you would return a FileResponse:
-    # from fastapi.responses import FileResponse
-    # return FileResponse(resume_path, filename=profile.resume_original_filename)
-    
-    return {"resume_path": resume_path}
+    return FileResponse(
+        profile.resume_url,
+        filename=profile.resume_original_filename,
+        media_type="application/octet-stream"
+    )
+
+# To implement:
+# - Store multiple resume?

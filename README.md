@@ -221,6 +221,47 @@ Example of the response:
 }
 ```
 
+# Upload resume into User profile (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/profiles/me/resume
+```
+Payload choose `form-data`, choose `file` in key field and upload file at the value field below as reference
+Example of the response:
+```bash
+{
+    "message": "Resume uploaded successfully",
+    "resume_url": "uploads/resumes/65b6b5d7-955a-484a-93f7-e1fb24866596.docx",
+    "filename": "test_doc.docx"
+}
+```
+
+# Delete resume (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `DELETE` request to:
+```bash
+http://127.0.0.1:9000/profiles/me/resume
+```
+Example of the response:
+```bash
+None or 204 No content
+```
+
+# Get resume or download resume (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/profiles/me/resume
+```
+Example of the response header:
+```bash
+content-type: application/octet-stream
+content-disposition: attachment; filename="test_doc.docx"
+content-length: 30 
+```
+Example of the response body (it will contain the contents of the file):
+```bash
+This is a test document
+```
+
 # Map
 ```authentication_service/
 ├── app/

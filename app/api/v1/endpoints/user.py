@@ -40,7 +40,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     Raises:
         HTTPException: 400 if username/email already exists
     """
-
     # Initialize user service with database session
     user_service = UserService(db)
     return user_service.create_user(user)
