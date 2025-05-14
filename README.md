@@ -1,3 +1,6 @@
+# Purpose of this service
+This service handles authentication (login) and user information (storing information like personal info, professional info, education, work experience, skills, resume, job perference etc)
+
 # Run app
 ```bash
 python3 run.py
