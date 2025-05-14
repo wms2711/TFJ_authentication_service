@@ -8,7 +8,11 @@ Dependency definitions for:
 
 from fastapi import Depends
 from app.services.auth import AuthService
+from app.services.redis import RedisService
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from app.database.session import get_db
+from app.services.application import ApplicationService
 
 # OAuth2 Password Bearer Scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -35,3 +39,12 @@ async def get_current_user(auth_service: AuthService = Depends(), token: str = D
             - 400 if user inactive
     """
     return await auth_service.get_current_active_user(token)
+
+def get_redis() -> RedisService:
+    return RedisService()
+
+def get_application_service(
+    db: Session = Depends(get_db),
+    redis: RedisService = Depends(get_redis)
+) -> ApplicationService:
+    return ApplicationService(db, redis)
