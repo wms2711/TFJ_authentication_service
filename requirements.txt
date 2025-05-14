@@ -10,3 +10,4 @@ redis==4.5.5
 uvicorn==0.22.0
 python-dotenv==1.0.0
 httpx==0.24.1
+aiofiles==24.1.0
