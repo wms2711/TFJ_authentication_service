@@ -36,7 +36,7 @@ class RedisService:
         self.stream_key = settings.REDIS_STREAM_KEY
         self.pubsub_channel = "ml_requests"
 
-    def publish_application(self, application_id: int):
+    def publish_application(self, application_id: int, user_id: int, job_id: str):
         """
         Publish application event to Redis Pub/Sub and Stream.
         
@@ -46,10 +46,14 @@ class RedisService:
         
         Args:
             application_id (int): ID of the submitted job application
+            user_id (int): ID of the user
+            job_id (str): ID of the job
         
         Structure:
             {
-                "application_id": 123,
+                "application_id": application_id,
+                "user_id": user_id,
+                "job_id": job_id,
                 "status": "pending"
             }
         """
@@ -64,6 +68,8 @@ class RedisService:
             name=self.stream_key,
             fields={
                 "application_id": application_id,
+                "user_id": user_id,
+                "job_id": job_id,
                 "status": "pending"
             },
             maxlen=10000  # Retain only the latest 10000 records

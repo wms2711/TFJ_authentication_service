@@ -61,7 +61,7 @@ class ApplicationService:
         if self.redis is None:
             raise RuntimeError(f"Redis service is not available. Cannot publish.")
         
-        self.redis.publish_application(app.id)
+        self.redis.publish_application(app.id, user_id, job_id)
         
         return ApplicationOut.model_validate(app)
     
