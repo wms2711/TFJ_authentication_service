@@ -1,5 +1,5 @@
 # Purpose of this service
-This service handles authentication (login) and user information (storing information like personal info, professional info, education, work experience, skills, resume, job perference etc)
+This service handles authentication (login), user information (storing information like personal info, professional info, education, work experience, skills, resume, job perference etc) and job application (swipe right send to redis pub/sub)
 
 # Run app
 ```bash
@@ -265,39 +265,78 @@ Example of the response body (it will contain the contents of the file):
 This is a test document
 ```
 
+# Job application for the user (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/application/
+```
+Payload below as reference:
+```bash
+{
+  "job_id": "abc123"
+}
+```
+
+# Job application patching for the user (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PATCH` request to:
+```bash
+http://127.0.0.1:9000/application/1
+```
+Payload below as reference:
+```bash
+{
+  "status": "completed",
+  "ml_status": "success"
+}
+```
+
 # Map
 ```authentication_service/
+├── uploads/
+│   └── resumes/
+│        └── <store resumes as UUID>  # Store resume (to change this method)
 ├── app/
 │   ├── __init__.py
-│   ├── main.py                # FastAPI app setup
-│   ├── config.py              # App configuration
-│   ├── dependencies.py        # App dependency injections
+│   ├── main.py                       # FastAPI app setup
+│   ├── config.py                     # App configuration
+│   ├── dependencies.py               # App dependency injections
 │   ├── database/
 │   │   ├── __init__.py
-│   │   ├── base.py            # Base model
-│   │   ├── session.py         # Database session management
+│   │   ├── base.py                   # Base model
+│   │   ├── session.py                # Database session management
 │   │   └── models/
-│   │       ├── user.py        # Database: User model
-│   │       └── profile.py     # Database: User profile model
-│   ├── schemas/               # Pydantic models
+│   │       ├── enums/
+│   │       │    ├── __init__.py
+│   │       │    └── application.py   # Models enums for application
+│   │       ├── user.py               # Database: User model
+│   │       ├── profile.py            # Database: User profile model
+│   │       └── application.py        # Database: Job application model
+│   ├── schemas/                      # Pydantic models
 │   │   ├── __init__.py
-│   │   ├── user.py            # User Data Schemas
-│   │   ├── token.py           # Authentication Token Schemas
-│   │   └── profile.py         # User Profile Data Schemas
+│   │   ├── user.py                   # User Data Schemas
+│   │   ├── token.py                  # Authentication Token Schemas
+│   │   ├── profile.py                # User Profile Data Schemas
+│   │   └── application.py            # Job Application Data Schemas
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── auth.py            # Auth service
-│   │   ├── user.py            # User service
-│   │   └── profile.py         # User Profile service
+│   │   ├── auth.py                   # Auth service
+│   │   ├── user.py                   # User service
+│   │   ├── profile.py                # User Profile service
+│   │   ├── redis.py                  # Redis Pub/Sub + streams service
+│   │   ├── application.py            # Jon application service
+│   │   └── ml_client.py              # Mock ML service
 │   └── api/
 │       ├── __init__.py
 │       ├── v1/
 │           ├── __init__.py
-│           ├── endpoints/
+│           └── endpoints/
 │               ├── __init__.py
-│               ├── auth.py    # Auth router
-│               ├── profile.py # Profile router
-│               └── user.py    # User router
+│               ├── auth.py           # Auth router
+│               ├── profile.py        # Profile router
+│               ├── user.py           # User router
+│               └── applications.py   # Job Application router
 ├── requirements.txt
-├── .env                       # Environment variables
-└── run.py                     # Application entry point for dev```
+├── .env                              # Environment variables
+├── run.py                            # Application entry point for dev
+└── worker.py                         # Background redis pub/sub processing
+```

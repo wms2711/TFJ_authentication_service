@@ -40,11 +40,11 @@ async def get_current_user(auth_service: AuthService = Depends(), token: str = D
     """
     return await auth_service.get_current_active_user(token)
 
-def get_redis() -> RedisService:
-    return RedisService()
+# def get_redis() -> RedisService:
+#     return RedisService()
 
-def get_application_service(
-    db: Session = Depends(get_db),
-    redis: RedisService = Depends(get_redis)
-) -> ApplicationService:
-    return ApplicationService(db, redis)
+# def get_application_service(
+#     db: Session = Depends(get_db),
+#     redis: RedisService = Depends(get_redis)
+# ) -> ApplicationService:
+#     return ApplicationService(db, redis)

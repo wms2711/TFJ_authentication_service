@@ -1,3 +1,13 @@
+"""
+Application Model Enums
+=========================
+
+Defines the database model structure for the statuses column:
+1. Database model representations
+
+Includes:
+- Status tracking
+"""
 from enum import Enum
 
 class ApplicationStatus(str, Enum):

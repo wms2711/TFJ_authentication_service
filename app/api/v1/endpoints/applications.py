@@ -1,3 +1,12 @@
+"""
+Application Management Router
+=============================
+
+Handles job application-related operations including:
+- Submitting new job applications to redis pub-sub
+- Updating application or ML processing status
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -22,6 +31,26 @@ def create_application(
     db: Session = Depends(get_db),
     redis: RedisService = Depends(RedisService)
 ):
+    """
+    Create a new job application
+
+    Flow:
+    1. Receives job_id in request body
+    2. Creates an application record tied to the current user
+    3. Publishes the application ID to Redis stream for ML processing
+
+    Args:
+        app_data: Job ID payload (from ApplicationCreate schema)
+        current_user: Authenticated user from JWT
+        db: Active SQLAlchemy session
+        redis: Redis service for publishing to stream
+
+    Returns:
+        ApplicationOut: Full application details after creation
+
+    Raises:
+        HTTPException: On any database or Redis failure
+    """
     application_service = ApplicationService(db=db, redis=redis)
     return application_service.create_application(
         user_id=current_user.id,
@@ -35,6 +64,26 @@ def update_application(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Update the status or ML status of an existing application
+
+    Flow:
+    1. Accepts optional status or ml_status fields
+    2. Finds the application by ID
+    3. Updates relevant fields and saves to DB
+
+    Args:
+        app_id: ID of the application to update
+        updates: Fields to update (status, ml_status)
+        db: Active SQLAlchemy session
+        current_user: Authenticated user from JWT
+
+    Returns:
+        ApplicationOut: Updated application details
+
+    Raises:
+        HTTPException: 404 if application not found
+    """
     application_service = ApplicationService(db=db, redis=None)  # Redis not needed here
     return application_service.update_application_status(
         app_id=app_id,
