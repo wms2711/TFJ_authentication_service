@@ -6,6 +6,7 @@ from app.api.v1.endpoints import auth, user, profile, applications
 # Models for database creation
 from app.database.models.user import User as UserDB
 from app.database.models.profile import UserProfile as UserProfileDB
+from app.database.models.application import Application as ApplicationDB
 
 # Initialize the FastAPI application
 # --------------------------------

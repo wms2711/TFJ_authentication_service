@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
+from app.database.models.enums.application import ApplicationStatus, MLTaskStatus
 
 class ApplicationBase(BaseModel):
     job_id: str
@@ -16,3 +18,7 @@ class ApplicationOut(ApplicationBase):
     
     class Config:
         from_attributes = True
+
+class ApplicationUpdate(BaseModel):
+    status: Optional[ApplicationStatus]
+    ml_status: Optional[MLTaskStatus]
