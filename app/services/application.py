@@ -102,3 +102,25 @@ class ApplicationService:
         self.db.refresh(app)
         
         return ApplicationOut.model_validate(app)
+    
+    def get_application_status(self, app_id: int) -> ApplicationOut:
+        """
+        Get existing application.
+
+        Flow:
+        1. Fetches application by ID
+
+        Args:
+            app_id (int): ID of the application to update
+
+        Returns:
+            ApplicationOut: Updated application details
+
+        Raises:
+            HTTPException: 404 if application not found
+        """
+        app = self.db.query(Application).filter(Application.id == app_id).first()
+        if not app:
+            raise HTTPException(status_code=404, detail="Application not found")
+        
+        return ApplicationOut.model_validate(app)

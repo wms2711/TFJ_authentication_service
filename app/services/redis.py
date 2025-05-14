@@ -63,7 +63,7 @@ class RedisService:
             json.dumps({"application_id": application_id})
         )
 
-        # Add to durable stream for tracking and history
+        # Add to durable stream for tracking and history (local storage)
         self.client.xadd(
             name=self.stream_key,
             fields={
@@ -74,3 +74,5 @@ class RedisService:
             },
             maxlen=10000  # Retain only the latest 10000 records
         )
+
+        # TODO: Stream, to continue store locally? Redis cloud? AWS ElastiCache?

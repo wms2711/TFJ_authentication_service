@@ -90,3 +90,29 @@ def update_application(
         status=updates.status,
         ml_status=updates.ml_status
     )
+
+@router.get("/{app_id}", response_model=ApplicationOut)
+def get_application(app_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """
+    Get information of an existing application
+
+    Flow:
+    1. Accepts app_id
+    2. Finds the application by ID
+    3. Returns the information found
+
+    Args:
+        app_id: ID of the application to update
+        db: Active SQLAlchemy session
+        current_user: Authenticated user from JWT
+
+    Returns:
+        ApplicationOut: Application details
+
+    Raises:
+        HTTPException: 404 if application not found
+    """
+    application_service = ApplicationService(db=db, redis=None)  # Redis not needed here
+    return application_service.get_application_status(
+        app_id=app_id
+    )

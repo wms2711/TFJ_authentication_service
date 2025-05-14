@@ -55,6 +55,7 @@ class ApplicationOut(ApplicationBase):
     id: int
     user_id: int
     status: str
+    ml_status: str
     created_at: datetime
     updated_at: datetime
     
