@@ -51,8 +51,8 @@ class Application(Base):
                        onupdate=datetime.utcnow)
     
     # Optional fields
-    ml_task_id = Column(String)      # Reference to ML service
-    error_message = Column(String)   # Failure details
+    ml_task_id = Column(String, nullable=True)      # Reference to ML service
+    error_message = Column(String, nullable=True)   # Failure details
     
     def __repr__(self):
         return f"<Application(id={self.id}, user_id={self.user_id}, job_id='{self.job_id}')>"
