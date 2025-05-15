@@ -1,7 +1,13 @@
 # Purpose of this service
 This service handles authentication (login), user information (storing information like personal info, professional info, education, work experience, skills, resume, job perference etc) and job application (swipe right send to redis pub/sub)
 
-# Run app
+# Quick Start
+## Installation (virtual environment) for Linux
+```bash
+python -m venv <your-env>
+source <your-env>/bin/activate
+```
+## Run service
 ```bash
 python3 run.py
 ```
@@ -290,7 +296,7 @@ Payload below as reference:
 }
 ```
 
-# Map
+# Project Structure
 ```authentication_service/
 ├── uploads/
 │   └── resumes/
