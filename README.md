@@ -12,6 +12,11 @@ source <your-env>/bin/activate
 python3 run.py
 ```
 
+# Version
+- V1.0 - Auth and user credentials (login) servic
+- V1.1 - Added user profile / information service
+- V1.2 - Added job application service
+
 # Add valid header for Authorization example
 | Key           | Value |
 |---------------|-------|
