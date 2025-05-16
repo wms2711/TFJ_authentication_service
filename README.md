@@ -7,7 +7,12 @@ This service handles authentication (login), user information (storing informati
 python -m venv <your-env>
 source <your-env>/bin/activate
 ```
-## Run service
+## Run service (dev: run both concurrently)
+### Main app
+```bash
+python3 run.py
+```
+### Redis worker (process stream)
 ```bash
 python3 run.py
 ```
@@ -367,5 +372,5 @@ Payload below as reference:
 ├── requirements.txt
 ├── .env                              # Environment variables
 ├── run.py                            # Application entry point for dev
-└── worker.py                         # Background redis pub/sub processing
+└── worker.py                         # Background redis stream processing
 ```
