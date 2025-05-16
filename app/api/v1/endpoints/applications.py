@@ -3,19 +3,21 @@ Application Management Router
 =============================
 
 Handles job application-related operations including:
-- Submitting new job applications to redis pub-sub
+- Submitting new job applications via Redis stream for ML processing
 - Updating application or ML processing status
+- Fetching application details
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.application import ApplicationCreate, ApplicationOut, ApplicationUpdate
 from app.services.application import ApplicationService
 from app.services.redis import RedisService
 from app.dependencies import get_current_user
 from app.database.models.user import User
-from app.database.session import get_db
+from app.database.session import get_db, async_get_db
 
 # Initialize router with prefix and tags for OpenAPI documentation
 router = APIRouter(
@@ -25,94 +27,109 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=ApplicationOut)
-def create_application(
+async def create_application(
     app_data: ApplicationCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     redis: RedisService = Depends(RedisService)
 ):
     """
-    Create a new job application
+    Submit a new job application.
 
-    Flow:
-    1. Receives job_id in request body
-    2. Creates an application record tied to the current user
-    3. Publishes the application ID to Redis stream for ML processing
+    Process:
+    1. Receives job ID from the request body.
+    2. Creates an application entry associated with the authenticated user.
+    3. Publishes the application ID to a Redis stream for asynchronous ML processing.
 
     Args:
-        app_data: Job ID payload (from ApplicationCreate schema)
-        current_user: Authenticated user from JWT
-        db: Active SQLAlchemy session
-        redis: Redis service for publishing to stream
+        app_data (ApplicationCreate): Contains the job ID to apply for.
+        current_user (User): Authenticated user obtained via JWT.
+        db (AsyncSession): Asynchronous SQLAlchemy database session.
+        redis (RedisService): Redis service used to publish messages to the stream.
 
     Returns:
-        ApplicationOut: Full application details after creation
+        ApplicationOut: Created application with full details.
 
     Raises:
-        HTTPException: On any database or Redis failure
+        HTTPException: If application creation fails due to validation or server errors.
     """
     application_service = ApplicationService(db=db, redis=redis)
-    return application_service.create_application(
-        user_id=current_user.id,
-        job_id=app_data.job_id
-    )
+
+    try:
+        application = await application_service.create_application(
+            user_id=current_user.id,
+            job_id=app_data.job_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to create application")
+
+    return application
 
 @router.patch("/{app_id}", response_model=ApplicationOut)
-def update_application(
+async def update_application(
     app_id: int,
     updates: ApplicationUpdate,
-    db: Session = Depends(get_db),
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
-    Update the status or ML status of an existing application
+    Update the status or ML processing status of an existing application.
 
-    Flow:
-    1. Accepts optional status or ml_status fields
-    2. Finds the application by ID
-    3. Updates relevant fields and saves to DB
+    Process:
+    1. Accepts application ID and update fields (status, ml_status).
+    2. Locates the application record in the database.
+    3. Updates the relevant fields and saves changes.
 
     Args:
-        app_id: ID of the application to update
-        updates: Fields to update (status, ml_status)
-        db: Active SQLAlchemy session
-        current_user: Authenticated user from JWT
+        app_id (int): ID of the application to update.
+        updates (ApplicationUpdate): Fields to be updated (status and/or ml_status).
+        db (AsyncSession): Asynchronous SQLAlchemy database session.
+        current_user (User): Authenticated user obtained via JWT.
 
     Returns:
-        ApplicationOut: Updated application details
+        ApplicationOut: Updated application data.
 
     Raises:
-        HTTPException: 404 if application not found
+        HTTPException: If the application is not found or update fails.
     """
     application_service = ApplicationService(db=db, redis=None)  # Redis not needed here
-    return application_service.update_application_status(
+    return await application_service.update_application_status(
         app_id=app_id,
         status=updates.status,
         ml_status=updates.ml_status
     )
 
 @router.get("/{app_id}", response_model=ApplicationOut)
-def get_application(app_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def get_application(
+    app_id: int, 
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Get information of an existing application
+    Retrieve details of a specific application.
 
-    Flow:
-    1. Accepts app_id
-    2. Finds the application by ID
-    3. Returns the information found
+    Process:
+    1. Accepts the application ID as input.
+    2. Retrieves the corresponding record from the database.
+    3. Returns full application details.
 
     Args:
-        app_id: ID of the application to update
-        db: Active SQLAlchemy session
-        current_user: Authenticated user from JWT
+        app_id (int): ID of the application to retrieve.
+        db (AsyncSession): Asynchronous SQLAlchemy database session.
+        current_user (User): Authenticated user obtained via JWT.
 
     Returns:
-        ApplicationOut: Application details
+        ApplicationOut: Full application details.
 
     Raises:
-        HTTPException: 404 if application not found
+        HTTPException: If the application is not found.
     """
     application_service = ApplicationService(db=db, redis=None)  # Redis not needed here
-    return application_service.get_application_status(
+    return await application_service.get_application_status(
         app_id=app_id
     )

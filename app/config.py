@@ -1,6 +1,6 @@
 """
 Application Configuration
-========================
+=========================
 
 Handles environment variables with fallback defaults.
 """
@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:Aa!234567890@127.0.0.1:5432/authentication_service")
+    DATABASE_URL_ASYNC: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:Aa!234567890@127.0.0.1:5432/authentication_service")
     SECRET_KEY: str = os.getenv("SECRET_KEY", None)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30

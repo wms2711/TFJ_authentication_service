@@ -11,7 +11,6 @@ from app.services.auth import AuthService
 from app.services.redis import RedisService
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from app.database.session import get_db
 from app.services.application import ApplicationService
 
 # OAuth2 Password Bearer Scheme

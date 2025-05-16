@@ -13,10 +13,12 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from app.database.session import get_db
+from app.database.session import get_db, async_get_db
 from app.database.models.user import User
 from app.schemas.token import TokenData
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 import logging
 from app.schemas.user import UserInDB
@@ -34,12 +36,12 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 class AuthService:
     """Main authentication service handling security operations."""
 
-    def __init__(self, db: Session = Depends(get_db)):
+    def __init__(self, db: AsyncSession = Depends(async_get_db)):
         """
         Initialize with database session.
         
         Args:
-            db: SQLAlchemy session (injected via FastAPI Depends)
+            db (AsyncSession): SQLAlchemy async database session.
         """
         self.db = db
 
@@ -48,11 +50,11 @@ class AuthService:
         Verify a plain password against its hashed version.
         
         Args:
-            plain_password: User-supplied password
-            hashed_password: Stored password hash
+            plain_password (str): User-supplied password.
+            hashed_password (str): Stored password hash.
             
         Returns:
-            bool: True if password matches hash
+            bool: True if password matches hash.
         """
         return pwd_context.verify(plain_password, hashed_password)
 
@@ -61,39 +63,41 @@ class AuthService:
         Generate secure password hash.
         
         Args:
-            password: Plain text password
+            password (str): Plain text password.
             
         Returns:
-            str: Hashed password
+            str: Hashed password.
         """
         return pwd_context.hash(password)
 
-    def get_user(self, username: str) -> User | None:
+    async def get_user(self, username: str) -> User | None:
         """
         Retrieve user by username to query database.
         
         Args:
-            username: Unique username identifier
+            username (str): Unique username identifier.
             
         Returns:
-            User: SQLAlchemy User model if found
-            None: If user doesn't exist
+            User: SQLAlchemy User model if found.
+            None: If user doesn't exist.
         """
-        return self.db.query(User).filter(User.username == username).first()
+        stmt = select(User).where(User.username == username)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def authenticate_user(self, username: str, password: str) -> User | None:
+    async def authenticate_user(self, username: str, password: str) -> User | None:
         """
         Authenticate user credentials.
         
         Args:
-            username: Account username
-            password: Plain text password
+            username (str): Account username.
+            password (str): Plain text password.
             
         Returns:
-            User: If credentials are valid
-            None: If authentication fails
+            User: If credentials are valid.
+            None: If authentication fails.
         """
-        user = self.get_user(username)
+        user = await self.get_user(username)
         if not user or not self.verify_password(password, user.hashed_password):
             log.warning(f"Failed login attempt for username: {username}")
             return None
@@ -104,11 +108,11 @@ class AuthService:
         Generate JWT access token.
         
         Args:
-            data: Payload to encode (should contain 'sub' claim)
-            expires_delta: Optional token lifetime
+            data (dict): Payload to encode (should contain 'sub' claim).
+            expires_delta (timedelta): Optional token lifetime.
             
         Returns:
-            str: Encoded JWT token
+            str: Encoded JWT token.
         """
         to_encode = data.copy()
         if expires_delta:
@@ -118,18 +122,18 @@ class AuthService:
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-    def get_current_user(self, token: str = Depends(oauth2_scheme)) -> User:
+    async def get_current_user(self, token: str = Depends(oauth2_scheme)) -> User:
         """
         Validate JWT and return corresponding user.
         
         Args:
-            token: JWT from Authorization header
+            token (str): JWT from Authorization header.
             
         Returns:
-            User: Authenticated user
+            User: Authenticated user.
             
         Raises:
-            HTTPException: 401 if token is invalid
+            HTTPException: 401 if token is invalid.
         """
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -146,7 +150,7 @@ class AuthService:
             log.error(f"JWT validation failed: {e}")
             raise credentials_exception
         
-        user = self.get_user(username=token_data.username)
+        user = await self.get_user(username=token_data.username)
         if user is None:
             log.warning(f"Token valid but user not found: {username}")
             raise credentials_exception
@@ -157,15 +161,15 @@ class AuthService:
         Get currently authenticated user (active only).
         
         Args:
-            token: JWT from Authorization header
+            token (str): JWT from Authorization header.
             
         Returns:
-            UserInDB: Pydantic model of authenticated user
+            UserInDB: Pydantic model of authenticated user.
             
         Raises:
-            HTTPException: 400 if user inactive
+            HTTPException: 400 if user inactive.
         """
-        user = self.get_current_user(token)
+        user = await self.get_current_user(token)
         if not user.is_active:
             log.warning(f"Inactive user access attempt: {user.username}")
             raise HTTPException(status_code=400, detail="Inactive user")

@@ -8,10 +8,12 @@ Handles all business logic related to user profile operations:
 """
 
 from typing import Optional
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.profile import UserProfile
 from app.schemas.profile import UserProfileCreate, UserProfileUpdate, UserProfileInDB
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 import os
 import uuid
 import aiofiles
@@ -20,16 +22,16 @@ from datetime import datetime
 class ProfileService:
     """Main profiling service for managing user profiles."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         """
         Initialize with database session.
         
         Args:
-            db: SQLAlchemy session for database operations
+            db (AsyncSession): SQLAlchemy async database session.
         """
         self.db = db
 
-    def get_profile_by_user_id(self, user_id: int) -> Optional[UserProfileInDB]:
+    async def get_profile_by_user_id(self, user_id: int) -> Optional[UserProfileInDB]:
         """
         Retrieve a user's profile by their user ID.
         
@@ -39,10 +41,13 @@ class ProfileService:
         Returns:
             UserProfileInDB | None: Profile data or None if not found.
         """
-        profile = self.db.query(UserProfile).filter(UserProfile.user_id == user_id).first()
+        result = await self.db.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
         return profile
 
-    def create_profile(self, user_id: int, profile_data: UserProfileCreate) -> UserProfileInDB:
+    async def create_profile(self, user_id: int, profile_data: UserProfileCreate) -> UserProfileInDB:
         """
         Create a new profile for a user.
         
@@ -61,11 +66,11 @@ class ProfileService:
             **profile_data.dict(exclude_unset=True)
             )
         self.db.add(db_profile)
-        self.db.commit()
-        self.db.refresh(db_profile)
+        await self.db.commit()
+        await self.db.refresh(db_profile)
         return db_profile
 
-    def update_profile(self, user_id: int, profile_data: UserProfileUpdate) -> Optional[UserProfileInDB]:
+    async def update_profile(self, user_id: int, profile_data: UserProfileUpdate) -> Optional[UserProfileInDB]:
         """
         Update an existing user profile.
         
@@ -76,7 +81,9 @@ class ProfileService:
         Returns:
             UserProfileInDB | None: Updated profile or None if not found.
         """        
-        db_profile = self.get_profile_by_user_id(user_id)
+        result = await self.db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+        db_profile = result.scalar_one_or_none()
+
         if not db_profile:
             return None
 
@@ -85,16 +92,16 @@ class ProfileService:
             setattr(db_profile, field, value)
 
         db_profile.updated_at = datetime.utcnow()
-        self.db.commit()
-        self.db.refresh(db_profile)
+        await self.db.commit()
+        await self.db.refresh(db_profile)
         return db_profile
 
     async def upload_resume(self, user_id: int, file: UploadFile, upload_dir: str) -> dict:
         """
         Upload and associate a resume file with the user profile.
         
-        - Saves the file with a unique name
-        - Replaces existing resume if any
+        - Saves the file with a unique name.
+        - Replaces existing resume if any.
         
         Args:
             user_id (int): ID of the user.
@@ -120,27 +127,31 @@ class ProfileService:
             await buffer.write(content)
         
         # Update profile
-        db_profile = self.get_profile_by_user_id(user_id)
-        if db_profile:
-            # Remove old resume if exists
-            if db_profile.resume_url and os.path.exists(db_profile.resume_url):
-                try:
-                    os.remove(db_profile.resume_url)
-                except:
-                    pass
+        result = await self.db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+        db_profile = result.scalar_one_or_none()
+
+        if not db_profile:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        if db_profile.resume_url and os.path.exists(db_profile.resume_url):
+            try:
+                os.remove(db_profile.resume_url)
+            except Exception:
+                pass
             
-            db_profile.updated_at = datetime.utcnow()
-            db_profile.resume_url = file_path
-            db_profile.resume_original_filename = file.filename
-            self.db.commit()
-        
+        db_profile.updated_at = datetime.utcnow()
+        db_profile.resume_url = file_path
+        db_profile.resume_original_filename = file.filename
+        await self.db.commit()
+        await self.db.refresh(db_profile)
+    
         return {
             "message": "Resume uploaded successfully",
             "resume_url": file_path,
             "filename": file.filename
         }
 
-    def delete_resume(self, user_id: int) -> bool:
+    async def delete_resume(self, user_id: int) -> bool:
         """
         Delete the resume file associated with a user's profile.
         
@@ -150,7 +161,7 @@ class ProfileService:
         Returns:
             bool: True if deleted successfully, False otherwise.
         """
-        db_profile = self.get_profile_by_user_id(user_id)
+        db_profile = await self.get_profile_by_user_id(user_id)
         if not db_profile or not db_profile.resume_url:
             return False
         
@@ -165,5 +176,5 @@ class ProfileService:
         db_profile.updated_at = datetime.utcnow()
         db_profile.resume_url = None
         db_profile.resume_original_filename = None
-        self.db.commit()
+        await self.db.commit()
         return True

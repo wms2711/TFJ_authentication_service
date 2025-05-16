@@ -1,10 +1,10 @@
 """
 Profile Management Router
-========================
+=========================
 
 Handles all profile-related endpoints including:
-- Profile creation (more in-depth information about users) and retrieval
-- Resume upload/download
+- Profile creation and retrieval
+- Resume upload, download, and deletion
 - Profile updates
 """
 
@@ -12,6 +12,7 @@ Handles all profile-related endpoints including:
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 from app.services.profile import ProfileService
@@ -21,7 +22,7 @@ from app.schemas.profile import (
     UserProfileInDB,
     ResumeUploadResponse
 )
-from app.database.session import get_db
+from app.database.session import get_db, async_get_db
 from app.services.auth import AuthService
 from app.database.models.user import User
 from app.dependencies import get_current_user
@@ -36,28 +37,29 @@ router = APIRouter(
 @router.get("/me", response_model=UserProfileInDB)
 async def get_my_profile(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """
-    Get current user's complete profile
+    Get current user's complete profile.
     
     Flow:
-    1. Validates JWT from Authorization header
-    2. Retrieves profile for authenticated user
-    3. Returns full profile data
+    1. Validates JWT from Authorization header.
+    2. Retrieves profile for authenticated user.
+    3. Returns full profile data.
     
     Args:
-        current_user: Automatically injected from JWT
-        db: Active database session
+        current_user (User): Authenticate and automatically inject user details from JWT.
+        db (AsyncSession): Active async database session.
         
     Returns:
-        UserProfileInDB: Complete profile information
+        UserProfileInDB: Complete profile information.
         
     Raises:
-        HTTPException: 404 if profile not found
+        HTTPException: 404 if profile not found.
     """
     profile_service = ProfileService(db)
-    profile = profile_service.get_profile_by_user_id(current_user.id)
+    profile = await profile_service.get_profile_by_user_id(current_user.id)
     if not profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -70,69 +72,70 @@ async def get_my_profile(
 async def create_my_profile(
     profile_data: UserProfileCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """
-    Create a new profile for current user
+    Create a new profile for current user.
     
     Flow:
-    1. Validates user doesn't already have a profile
-    2. Creates new profile with provided data
-    3. Returns created profile
+    1. Validates user doesn't already have a profile.
+    2. Creates new profile with provided data.
+    3. Returns created profile.
     
     Args:
-        profile_data: Basic profile information
-        current_user: Authenticated user from JWT
-        db: Active database session
+        profile_data (UserProfileCreate): Basic profile information.
+        current_user (User): Authenticate and automatically inject user details from JWT.
+        db (AsyncSession): Active async database session.
         
     Returns:
-        UserProfileInDB: Newly created profile
+        UserProfileInDB: Newly created profile.
         
     Raises:
         HTTPException: 
-            - 400 if profile already exists
-            - 401 if not authenticated
+            - 400 if profile already exists.
+            - 401 if not authenticated.
     """
     profile_service = ProfileService(db)
-    existing_profile = profile_service.get_profile_by_user_id(current_user.id)
+    existing_profile = await profile_service.get_profile_by_user_id(current_user.id)
     if existing_profile:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Profile already exists"
         )
     
-    return profile_service.create_profile(current_user.id, profile_data)
-
+    return await profile_service.create_profile(current_user.id, profile_data)
 
 @router.put("/me", response_model=UserProfileInDB)
 async def update_my_profile(
     profile_data: UserProfileUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """
-    Update current user's profile
+    Update current user's profile.
     
     Flow:
-    1. Validates profile exists
-    2. Updates fields with provided data
-    3. Returns updated profile
+    1. Validates profile exists.
+    2. Updates fields with provided data.
+    3. Returns updated profile.
     
     Args:
-        profile_data: Profile fields to update
-        current_user: Authenticated user from JWT
-        db: Active database session
+        profile_data (UserProfileCreate): Basic profile information.
+        current_user (User): Authenticate and automatically inject user details from JWT.
+        db (AsyncSession): Active async database session.
         
     Returns:
-        UserProfileInDB: Updated profile information
+        UserProfileInDB: Updated profile information.
         
     Raises:
         HTTPException: 
-            - 404 if profile not found
-            - 401 if not authenticated
+            - 404 if profile not found.
+            - 401 if not authenticated.
     """
     profile_service = ProfileService(db)
-    updated_profile = profile_service.update_profile(current_user.id, profile_data)
+    updated_profile = await profile_service.update_profile(current_user.id, profile_data)
     if not updated_profile:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -145,29 +148,30 @@ async def update_my_profile(
 async def upload_my_resume(
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """
-    Upload resume for current user
+    Upload resume for current user.
     
     Flow:
-    1. Validates file type (PDF/DOC/DOCX)
-    2. Saves file to server storage
-    3. Updates profile with resume metadata
+    1. Validates file type (PDF/DOC/DOCX).
+    2. Saves file to server storage.
+    3. Updates profile with resume metadata.
     
     Args:
-        file: Resume file to upload
-        current_user: Authenticated user from JWT
-        db: Active database session
+        file (UploadFile): Resume file to upload.
+        current_user (User): Authenticate and automatically inject user details from JWT.
+        db (AsyncSession): Active async database session.
         
     Returns:
-        dict: Upload result with file metadata
+        dict: Upload result with file metadata.
         
     Raises:
         HTTPException:
-            - 400 for invalid file types
-            - 401 if not authenticated
-            - 500 for upload failures
+            - 400 for invalid file types.
+            - 401 if not authenticated.
+            - 500 for upload failures.
     """
     if not file.filename.lower().endswith(('.pdf', '.doc', '.docx')):
         raise HTTPException(
@@ -190,29 +194,30 @@ async def upload_my_resume(
 @router.delete("/me/resume", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_my_resume(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """
-    Delete current user's resume
+    Delete current user's resume.
     
     Flow:
-    1. Removes resume file from storage
-    2. Clears resume metadata from profile
+    1. Removes resume file from storage.
+    2. Clears resume metadata from profile.
     
     Args:
-        current_user: Authenticated user from JWT
-        db: Active database session
+        current_user (User): Authenticate and automatically inject user details from JWT.
+        db (AsyncSession): Active async database session.
         
     Returns:
-        None: 204 No Content on success
+        None: 204 No Content on success.
         
     Raises:
         HTTPException:
-            - 404 if no resume exists
-            - 401 if not authenticated
+            - 404 if no resume exists.
+            - 401 if not authenticated.
     """
     profile_service = ProfileService(db)
-    if not profile_service.delete_resume(current_user.id):
+    if not await profile_service.delete_resume(current_user.id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Resume not found"
@@ -223,7 +228,8 @@ async def delete_my_resume(
 @router.get("/me/resume")
 async def download_my_resume(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
 ):
     """
     Download current user's resume
@@ -245,7 +251,7 @@ async def download_my_resume(
             - 401 if not authenticated
     """
     profile_service = ProfileService(db)
-    profile = profile_service.get_profile_by_user_id(current_user.id)
+    profile = await profile_service.get_profile_by_user_id(current_user.id)
     
     if not profile or not profile.resume_url:
         raise HTTPException(
@@ -254,7 +260,7 @@ async def download_my_resume(
         )
     
     return FileResponse(
-        profile.resume_url,
+        path=profile.resume_url,
         filename=profile.resume_original_filename,
         media_type="application/octet-stream"
     )

@@ -12,10 +12,28 @@ source <your-env>/bin/activate
 python3 run.py
 ```
 
-# Version
-- V1.0 - Auth and user credentials (login) servic
-- V1.1 - Added user profile / information service
-- V1.2 - Added job application service
+# Version History
+
+### V1.0
+- Auth and user credentials (login) service
+
+### V1.1
+- Added user profile / information service
+
+### V1.2
+- Added job application service
+
+#### V1.2.1
+- Replaced database session with async session  
+  _Reason: To support non-blocking I/O and able to scale_
+  
+- Replaced CRUD operations with async equivalents  
+  _Reason: Align with async DB session for full async request handling._
+
+- Redis service remains synchronous  
+  _Reason: Our implementation is fire-and-forget (no need to await replies), so async overhead is unnecessary._
+
+
 
 # Add valid header for Authorization example
 | Key           | Value |
