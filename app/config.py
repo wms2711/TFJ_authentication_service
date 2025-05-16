@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     REDIS_PORT: int = os.getenv("REDIS_PORT", 6379)
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
     REDIS_STREAM_KEY: str = "applications"
+    REDIS_DEAD_STREAM_KEY: str = "dead_letters"
 
     class Config:
         env_file = ".env"
