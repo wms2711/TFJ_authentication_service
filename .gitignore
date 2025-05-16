@@ -4,4 +4,7 @@
 # cache
 *__pycache__*
 
+# others
 .bashrc
+uploads/
+progress.txt

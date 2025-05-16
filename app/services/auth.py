@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 import logging
 from app.schemas.user import UserInDB
+import uuid
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -84,6 +85,21 @@ class AuthService:
         stmt = select(User).where(User.username == username)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
+    
+    async def get_user_by_email(self, email: str) -> User | None:
+        """
+        Retrieve user by email to query database.
+        
+        Args:
+            email (str): Unique email identifier.
+            
+        Returns:
+            User: SQLAlchemy User model if found.
+            None: If user doesn't exist.
+        """
+        stmt = select(User).where(User.email == email)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def authenticate_user(self, username: str, password: str) -> User | None:
         """
@@ -119,6 +135,41 @@ class AuthService:
             expire = datetime.utcnow() + expires_delta
         else:
             expire = datetime.utcnow() + timedelta(minutes=15)
+        to_encode.update({"exp": expire})
+        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    
+    def create_reset_token(self, email: str, expires_delta: timedelta | None = None) -> str:
+        """
+        Generate a one-time-use JWT token for password reset.
+        
+        Args:
+            email (str): User's email address to associate with the token.
+            expires_delta (timedelta | None): Optional token lifetime. 
+                Defaults to 15 minutes if not specified.
+                
+        Returns:
+            str: Encoded JWT token containing:
+                - sub: User's email (subject claim)
+                - exp: Expiration timestamp
+                - jti: Unique token identifier (for one-time use tracking)
+                
+        Security Notes:
+            1. Tokens should be short-lived (recommended 15-30 minute expiry)
+            2. Always use HTTPS for token transmission
+            3. Tokens should be single-use (track usage in database/Redis)
+        """
+        to_encode = {
+            "sub": email,
+            "jti": str(uuid.uuid4()),  # Unique token ID for one-time use tracking
+            "purpose": "password_reset"  # Explicit token purpose
+        }
+        
+        # Set expiration (default 15 minutes if not specified)
+        if expires_delta:
+            expire = datetime.utcnow() + expires_delta
+        else:
+            expire = datetime.utcnow() + timedelta(minutes=15)
+        
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 

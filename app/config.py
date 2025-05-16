@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "")
     REDIS_STREAM_KEY: str = "applications"
     REDIS_DEAD_STREAM_KEY: str = "dead_letters"
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "127.0.0.1")
 
     class Config:
         env_file = ".env"

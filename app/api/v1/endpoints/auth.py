@@ -8,16 +8,17 @@ Handles all authentication-related endpoints including:
 - Token validation
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from datetime import timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 
 from app.database.session import get_db, async_get_db
-from app.schemas.token import Token
+from app.schemas.token import Token, ForgotPasswordRequest
 from app.services.auth import AuthService
 from app.services.user import UserService
+from app.services.email import EmailService
 from app.database.models.user import User
 from app.config import settings
 
@@ -127,6 +128,52 @@ async def check_token(
     # Validate token and get current user
     current_user = await auth_service.get_current_active_user(token)
     return {"valid": True, "user": current_user.username}
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(async_get_db)
+):
+    """
+    Initiate password reset process.
+    
+    1. Checks if email exists in system
+    2. Generates time-limited reset token (expires in 15 mins)
+    3. Sends email with reset link containing token
+    
+    Args:
+        request: Contains user's email address
+        background_tasks: FastAPI background tasks for sending email async
+        db: Async database session
+    
+    Returns:
+        Message confirming reset email was sent (even if email doesn't exist)
+    """
+    auth_service = AuthService(db)
+    email_service = EmailService()
+
+    # Check if user exists
+    user = await auth_service.get_user_by_email(request.email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User with this email does not exist"
+        )    
+    # Generate reset token
+    reset_token = auth_service.create_reset_token(
+        email=user.email,
+        expires_delta=timedelta(minutes=15)
+    )
+    
+    # Send email in background
+    background_tasks.add_task(
+        email_service.send_password_reset_email,
+        email=user.email,
+        token=reset_token
+    )
+
+    return {"message": "Password reset link sent to your email"}
 
 # To implement:
 # - POST /auth/forgot-password for registered users that forgot password and wants to reset it, generate one time-use JWT and sends an email with a link, to set new password (/auth/reset-password).

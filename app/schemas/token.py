@@ -8,7 +8,7 @@ Defines the data structures for JWT token handling:
 """
 
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 class Token(BaseModel):
     """
@@ -42,3 +42,6 @@ class TokenData(BaseModel):
         username (Optional[str]): Unique user identifier extracted from token
     """
     username: Optional[str] = None
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
