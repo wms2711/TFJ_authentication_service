@@ -14,7 +14,7 @@ python3 run.py
 ```
 ### Redis worker (process stream)
 ```bash
-python3 run.py
+python3 worker.py
 ```
 
 # Version History
