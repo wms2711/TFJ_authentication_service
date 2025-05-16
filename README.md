@@ -358,7 +358,8 @@ Payload below as reference:
 │   │   ├── profile.py                # User Profile service
 │   │   ├── redis.py                  # Redis Pub/Sub + streams service
 │   │   ├── application.py            # Jon application service
-│   │   └── ml_client.py              # Mock ML service
+│   │   ├── ml_client.py              # Mock ML service
+│   │   └── email.py                  # Email service
 │   └── api/
 │       ├── __init__.py
 │       ├── v1/
