@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db, async_get_db
-from app.schemas.user import UserInDB, UserCreate, UserUpdate
+from app.schemas.user import UserInDB, UserCreate, UserUpdate, UserVerificationRequest
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.services.email import EmailService
@@ -158,6 +158,42 @@ async def delete_user_me(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Account deletion failed"
         )
+    
+@router.get("/verify-email")
+async def verify_email(
+    request: UserVerificationRequest,
+    db: AsyncSession = Depends(async_get_db)
+):
+        """
+    Verify user's email using the verification token.
+    
+    Flow:
+    1. Decodes and validates the token
+    2. Marks email as verified in database
+    3. Returns success message
+    
+    Args:
+        token: Verification token from email link
+        
+    Returns:
+        JSON response with success message
+        
+    Raises:
+        HTTPException: 400 if token is invalid
+    """
+        auth_service = AuthService(db)
+        email = auth_service.verify_email_token(request.token)
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired verification token"
+            )
+        
+        user_service = UserService(db)
+        await user_service.mark_email_as_verified(email)
+
+        return {"message": "Email successfully verified"}
+
 # To implement:
 # - POST /users/send-verification for new sign-ups and need to verify their email address, send email verification link.
 # - PATCH /users/me to update own profile

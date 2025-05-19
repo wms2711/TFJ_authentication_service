@@ -93,3 +93,6 @@ class UserPasswordUpdate(BaseModel):
         Password is expected to be hashed before persistence.
     """
     new_password: str
+
+class UserVerificationRequest(BaseModel):
+    token: str

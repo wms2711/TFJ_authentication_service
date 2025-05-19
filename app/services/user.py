@@ -8,7 +8,7 @@ Handles all business logic related to user account operations:
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.user import User
@@ -45,13 +45,25 @@ class UserService:
             User: Created SQLAlchemy user model.
             
         Raises:
-            HTTPException: 400 if username already exists.
+            HTTPException: 400 if username or email already exists.
         """
-        # Check for existing user
-        result = await self.db.execute(select(User).where(User.username == user.username))
-        db_user = result.scalar_one_or_none()
-        if db_user:
-            raise HTTPException(status_code=400, detail="Username already registered")
+        # Check for existing username
+        username_result = await self.db.execute(
+            select(User).where(User.username == user.username))
+        if username_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered"
+            )
+        
+        # Check for existing email
+        email_result = await self.db.execute(
+            select(User).where(User.email == user.email))
+        if email_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
         
         # Hash password before storage
         hashed_password = AuthService(self.db).get_password_hash(user.password)
@@ -179,6 +191,19 @@ class UserService:
             await self.db.rollback()
             raise ValueError(f"Failed to delete user: {str(e)}") from e
 
+    async def mark_email_as_verified(self, email: str) -> None:
+        """
+        Mark a user's email as verified in the database.
+        
+        Args:
+            email: Email address to verify
+        """
+        result = await self.db.execute(
+            update(User)
+            .where(User.email == email)
+            .values(email_verified=True)
+        )
+        await self.db.commit()
 
     # def get_user_by_username(self, username: str) -> User | None:
     #     """

@@ -248,6 +248,27 @@ class AuthService:
         except Exception as e:
             return None
         
+    def verify_email_token(self, token: str) -> str | None:
+        """
+        Verify email verification token and return email if valid.
+        
+        Args:
+            token (str): JWT verification token
+            
+        Returns:
+            str | None: Email address if token is valid, None otherwise
+        """
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            email: str = payload.get("sub")
+            purpose: str = payload.get("purpose")
+            
+            if email is None or purpose != "email_verification":
+                return None
+            return email
+        except Exception as e:
+            return None
+        
     def generate_verification_token(self, email: str) -> str:
         """
         Generate a JWT token for email verification.
