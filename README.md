@@ -29,11 +29,11 @@ python3 worker.py
 ### V1.1
 - Added user profile / information service
 ###### V1.1.1
-- User verification for new sign-ups, an email (with temporary token) will be sent to verify, user will be added to database at the meantime (as a non-verified user)
+- User verification for new sign-ups - an email (with temporary token) will be sent to verify, user will be added to database at the meantime (as a non-verified user)
 ###### V1.1.2
-- User update credentials, user can self-update credentials
+- User update credentials - user can self-update credentials
 ###### V1.1.3
-- User self-delete credentials, user can self-delete account, this will delete user_profile that is likned to user.id
+- User self-delete credentials - user can self-delete account, this will delete user_profile that is likned to user.id
 
 ### V1.2
 - Added job application service
