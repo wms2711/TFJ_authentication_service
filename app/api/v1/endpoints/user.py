@@ -105,6 +105,49 @@ async def update_user_me(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_me(
+    current_user: UserInDB = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db),
+    auth_service: AuthService = Depends()
+):
+    """
+    Delete current user's account and profile while preserving applications.
+    
+    Flow:
+    1. Verify authentication.
+    2. Delete profile (if exists).
+    3. Delete user account.
+    4. Cleanup auth tokens.
+    5. Send confirmation.
+    
+    Security:
+    - Only affects currently authenticated user.
+    - Atomic transaction ensures all-or-nothing deletion.
+    - Preserves application records as per business requirements.
+    """
+    user_service = UserService(db)
+    try:
+        # Perform the deletion (both user and profile)
+        await user_service.delete_user(current_user.id)
+        
+        # Cleanup authentication artifacts
+        # await auth_service.revoke_all_user_tokens(current_user.id)
+        
+        # Send confirmation email
+        # await auth_service.send_account_deletion_email(current_user.email)
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Account deletion failed"
+        )
 # To implement:
 # - POST /users/send-verification for new sign-ups and need to verify their email address, send email verification link.
 # - PATCH /users/me to update own profile

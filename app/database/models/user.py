@@ -36,7 +36,8 @@ class User(Base):
     # Relationship to profile (one-to-one)
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
-    # Relationship to application (one-to-one)
+    # Relationship to application (Keep application table independent from user table)
+        # Reason: For tracking of applications even after user has self-delete profile
     # application = relationship("Application", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):

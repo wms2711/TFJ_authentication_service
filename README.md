@@ -30,6 +30,8 @@ python3 worker.py
 - Added user profile / information service
 ###### V1.1.2
 - User update credentials
+###### V1.1.3
+- User seld-delete credentials
 
 ### V1.2
 - Added job application service
@@ -360,6 +362,16 @@ Payload below as reference:
   "full_name": <str>,
   "is_active": <bool>,
 }
+```
+
+# User credentails delete (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `DELETE` request to:
+```bash
+http://127.0.0.1:9000/users/me
+```
+Example of the response:
+```bash
+None or 204 No content
 ```
 
 # User forget password

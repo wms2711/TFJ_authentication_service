@@ -9,9 +9,10 @@ Handles all business logic related to user account operations:
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.user import User
+from app.database.models.profile import UserProfile
 from app.schemas.user import UserCreate, UserInDB, UserUpdate, UserPasswordUpdate
 from app.services.auth import AuthService
 
@@ -70,17 +71,17 @@ class UserService:
         return db_user
     
     async def update_user(self, user_id: int, update_data: dict) -> None:
-        """Update user fields and return updated user object
+        """Update user fields and return updated user object.
 
         Args:
-            user_id: ID of the user to update
-            update_data: Pydantic model containing fields to update
+            user_id: ID of the user to update.
+            update_data: Pydantic model containing fields to update.
 
         Returns:
-            Updated User object
+            Updated User object.
 
         Raises:
-            ValueError: If user not found or email already in use
+            ValueError: If user not found or email already in use.
         """
         # Retrieve the user from the database
         result = await self.db.execute(select(User).where(User.id == user_id))
@@ -107,17 +108,17 @@ class UserService:
         return user
 
     async def update_password(self, user_id: int, new_password: UserPasswordUpdate) -> User:
-        """Update user password and return updated user object
+        """Update user password and return updated user object.
         
         Args:
-            user_id: ID of user to update
-            new_password: Plain text new password
+            user_id: ID of user to update.
+            new_password: Plain text new password.
             
         Returns:
-            Updated User object
+            Updated User object.
             
         Raises:
-            ValueError: If user not found
+            ValueError: If user not found.
         """
         # Get user from database
         result = await self.db.execute(select(User).where(User.id == user_id))
@@ -135,6 +136,48 @@ class UserService:
         await self.db.refresh(user)
         
         return user
+    
+    async def delete_user(self, user_id: int) -> None:
+        """
+        Permanently delete a user account and related profile.
+        
+        Flow:
+        1. Verify user exists.
+        2. Delete associated profile (if exists).
+        3. Delete user record.
+        4. Commit transaction.
+        
+        Args:
+            user_id: ID of the user to delete.
+            
+        Raises:
+            ValueError: If user not found.
+            HTTPException: If deletion fails (converted in router layer).
+        """
+        try:
+            # 1. Get the user with profile eagerly loaded
+            result = await self.db.execute(
+                select(User)
+                .where(User.id == user_id)
+                .options(selectinload(User.profile))
+            )
+            user = result.scalars().first()
+
+            if not user:
+                raise ValueError("User not found")
+
+            # 2. Delete associated profile if exists
+            if user.profile:
+                await self.db.delete(user.profile)
+                await self.db.flush()
+            
+            # 3. Delete the user record
+            await self.db.delete(user)
+            await self.db.commit()
+            
+        except Exception as e:
+            await self.db.rollback()
+            raise ValueError(f"Failed to delete user: {str(e)}") from e
 
 
     # def get_user_by_username(self, username: str) -> User | None:
