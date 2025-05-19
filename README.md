@@ -22,18 +22,18 @@ python3 worker.py
 ### V1.0
 - Auth and user credentials (login) service
 ###### V1.0.1
-- Forget password logic
+- Forget password - Initiate password reset by sending an link to user's email (with temporary token), by clicking the link in the email, user will be prompt to reset password 
 ###### V1.0.2
-- Reset password logic
+- Reset password - Verifies the temporary token and updates the password into database
 
 ### V1.1
 - Added user profile / information service
 ###### V1.1.1
-- User verification for new sign-ups, an email will be sent to verify
+- User verification for new sign-ups, an email (with temporary token) will be sent to verify, user will be added to database at the meantime (as a non-verified user)
 ###### V1.1.2
-- User update credentials
+- User update credentials, user can self-update credentials
 ###### V1.1.3
-- User self-delete credentials
+- User self-delete credentials, user can self-delete account, this will delete user_profile that is likned to user.id
 
 ### V1.2
 - Added job application service
