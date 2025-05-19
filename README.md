@@ -28,10 +28,10 @@ python3 worker.py
 
 ### V1.1
 - Added user profile / information service
-###### V1.1.2
-- User update credentials
 ###### V1.1.1
 - User verification for new sign-ups, an email will be sent to verify
+###### V1.1.2
+- User update credentials
 ###### V1.1.3
 - User self-delete credentials
 
