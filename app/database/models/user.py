@@ -21,6 +21,7 @@ class User(Base):
         hashed_password: Securely stored password hash
         is_active: Account status flag
         full_name: Optional display name
+        email_verified: Email verification status
     """
 
     # Database table name

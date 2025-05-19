@@ -95,4 +95,14 @@ class UserPasswordUpdate(BaseModel):
     new_password: str
 
 class UserVerificationRequest(BaseModel):
+    """
+    Schema for verification of user.
+    
+    Used in:
+    - GET /users/verify-email
+    - For new sign-ups who needs identity verification
+    
+    Attributes:
+        token (str): The new sign-ups verification token sent to the user's email.
+    """
     token: str
