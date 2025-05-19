@@ -7,14 +7,14 @@ Handles all user-related endpoints including:
 - Current user profile retrieval
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db, async_get_db
-from app.schemas.user import UserInDB
+from app.schemas.user import UserInDB, UserCreate, UserUpdate
 from app.services.auth import AuthService
-from app.services.user import UserService, UserCreate
+from app.services.user import UserService
 from app.dependencies import get_current_user
 
 # Initialize router with prefix and tags for OpenAPI documentation
@@ -67,6 +67,44 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     """
     return current_user
 
+@router.patch("/me", response_model=UserInDB)
+async def update_user_me(
+    user_update: UserUpdate,
+    current_user: UserInDB = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db),
+):
+    """
+    Update current authenticated user's profile.
+    
+    Flow:
+    1. Validates JWT from Authorization header.
+    2. Receives partial update data.
+    3. Validates and applies updates.
+    4. Returns updated user profile.
+    
+    Args:
+        user_update: Partial user data to update.
+        current_user: Authenticated user from JWT.
+        db: Async database session.
+        
+    Returns:
+        Updated user profile.
+        
+    Raises:
+        HTTPException: 400 if validation fails (e.g., email already in use).
+    """
+    user_service = UserService(db)
+    try:
+        updated_user = await user_service.update_user(
+            user_id=current_user.id,
+            update_data=user_update
+        )
+        return updated_user
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 # To implement:
 # - POST /users/send-verification for new sign-ups and need to verify their email address, send email verification link.
 # - PATCH /users/me to update own profile

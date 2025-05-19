@@ -70,17 +70,41 @@ class UserService:
         return db_user
     
     async def update_user(self, user_id: int, update_data: dict) -> None:
-        """Basic user update without validations"""
+        """Update user fields and return updated user object
+
+        Args:
+            user_id: ID of the user to update
+            update_data: Pydantic model containing fields to update
+
+        Returns:
+            Updated User object
+
+        Raises:
+            ValueError: If user not found or email already in use
+        """
+        # Retrieve the user from the database
         result = await self.db.execute(select(User).where(User.id == user_id))
         user = result.scalars().first()
-        
         if not user:
             raise ValueError("User not found")
         
-        for field, value in update_data.items():
+        # Extract only provided fields to update
+        data_to_update = update_data.dict(exclude_unset=True)
+
+        # Validate email uniqueness if being changed
+        if "email" in data_to_update and data_to_update["email"] != user.email:
+            existing_user = await AuthService(self.db).get_user_by_email(data_to_update["email"])
+            if existing_user:
+                raise ValueError("Email already in use")
+            
+        # Update user information
+        for field, value in data_to_update.items():
             setattr(user, field, value)
         
         await self.db.commit()
+        await self.db.refresh(user)
+        
+        return user
 
     async def update_password(self, user_id: int, new_password: UserPasswordUpdate) -> User:
         """Update user password and return updated user object

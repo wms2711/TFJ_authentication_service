@@ -327,6 +327,70 @@ Payload below as reference:
 }
 ```
 
+# Get job application details (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/application/1
+```
+Example of the response body:
+```bash
+{
+    "job_id": "abc4",
+    "id": 11,
+    "user_id": 1,
+    "status": "completed",
+    "ml_status": "success",
+    "created_at": "2025-05-16T06:22:09.654218",
+    "updated_at": "2025-05-16T06:32:01.880980"
+}
+```
+
+# User credentails patching (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PATCH` request to:
+```bash
+http://127.0.0.1:9000/users/me
+```
+Payload below as reference:
+```bash
+{
+  "email": "wangmingshen2@gmail.com",
+  "username": <str>,
+  "full_name": <str>,
+  "is_active": <bool>,
+}
+```
+
+# User forget password
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/auth/forgot-password
+```
+Payload below as reference:
+```bash
+{
+    "email": "wangmingshen1@gmail.com"
+}
+```
+Example of the response body:
+```bash
+{
+    "message": "Password reset link sent to your email"
+}
+```
+
+# User reset password
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/auth/reset-password
+```
+Payload below as reference:
+```bash
+{
+    "token": "eyJhb...",   # From the email generated from /auth/forgot-password
+    "new_password": "111"
+}
+```
+
 # Project Structure
 ```authentication_service/
 ├── uploads/
