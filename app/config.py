@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     REDIS_STREAM_KEY: str = "applications"
     REDIS_DEAD_STREAM_KEY: str = "dead_letters"
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "127.0.0.1")
+    EMAIL_SENDER: str = os.getenv("EMAIL_SENDER", "wangmingshen1@gmail.com")
+    BREVO_API_KEY: str = os.getenv("BREVO_API_KEY", None)
 
     class Config:
         env_file = ".env"
