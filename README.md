@@ -28,6 +28,8 @@ python3 worker.py
 
 ### V1.1
 - Added user profile / information service
+###### V1.1.2
+- User update credentials
 
 ### V1.2
 - Added job application service
