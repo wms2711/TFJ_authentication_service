@@ -247,3 +247,26 @@ class AuthService:
             return email
         except Exception as e:
             return None
+        
+    def generate_verification_token(self, email: str) -> str:
+        """
+        Generate a JWT token for email verification.
+        
+        Args:
+            email (str): User's email address to verify.
+            
+        Returns:
+            str: Encoded JWT token containing:
+                - sub: User's email
+                - exp: Expiration timestamp (24 hours)
+                - jti: Unique token ID
+                - purpose: "email_verification"
+        """
+        to_encode = {
+            "sub": email,
+            "jti": str(uuid.uuid4()),
+            "purpose": "email_verification"  # Explicit token purpose
+        }
+        expire = datetime.utcnow() + timedelta(hours=24)  # 24 hours expiry
+        to_encode.update({"exp": expire})
+        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

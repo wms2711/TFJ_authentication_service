@@ -15,6 +15,7 @@ from app.database.session import get_db, async_get_db
 from app.schemas.user import UserInDB, UserCreate, UserUpdate
 from app.services.auth import AuthService
 from app.services.user import UserService
+from app.services.email import EmailService
 from app.dependencies import get_current_user
 
 # Initialize router with prefix and tags for OpenAPI documentation
@@ -45,9 +46,18 @@ async def create_user(
     Raises:
         HTTPException: 400 if username/email already exists.
     """
-    # Initialize user service with database session
     user_service = UserService(db)
-    return await user_service.create_user(user)
+    auth_service = AuthService(db)
+    email_service = EmailService()
+
+    # Create user
+    created_user = await user_service.create_user(user)
+
+    # Generate verification token and send email
+    verification_token = auth_service.generate_verification_token(created_user.email)
+    await email_service.send_verification_email(created_user.email, verification_token)
+
+    return created_user
 
 @router.get("/me", response_model=UserInDB)
 async def read_users_me(current_user: UserInDB = Depends(get_current_user)):

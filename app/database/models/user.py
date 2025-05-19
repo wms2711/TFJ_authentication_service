@@ -6,7 +6,7 @@ Defines the database schema and ORM mapping for user accounts.
 This model represents the 'user' table in the database.
 """
 
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from app.database.base import Base
 
@@ -32,6 +32,9 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     full_name = Column(String(100), nullable=True)
+
+    # Verify
+    email_verified = Column(Boolean, default=False)
 
     # Relationship to profile (one-to-one)
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")

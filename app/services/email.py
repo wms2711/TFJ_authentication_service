@@ -77,3 +77,43 @@ class EmailService:
         except ApiException as e:
             print(f"❌ Failed to send email: {e}")
             return False
+        
+    async def send_verification_email(self, email: str, token: str) -> bool:
+        """
+        Send email verification email to the specified recipient.
+        
+        Args:
+            email (str): Recipient's email address.
+            token (str): JWT verification token.
+            
+        Returns:
+            bool: True if email sent successfully, False otherwise.
+        """
+        verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+        
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+            sib_api_v3_sdk.ApiClient(self.configuration)
+        )
+
+        sender = {"name": "JobMatch Team", "email": settings.EMAIL_SENDER}
+        to = [{"email": email}]
+
+        send_email = sib_api_v3_sdk.SendSmtpEmail(
+            sender=sender,
+            to=to,
+            subject="Verify Your Email Address",
+            html_content=f"""
+            <p>Welcome! Please verify your email address:</p>
+            <a href="{verification_link}">Verify Email</a>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you didn't create an account, please ignore this email.</p>
+            """
+        )
+        
+        try:
+            await asyncio.to_thread(api_instance.send_transac_email, send_email)
+            print(f"✅ Verification email sent to {email}")
+            return True
+        except ApiException as e:
+            print(f"❌ Failed to send verification email: {e}")
+            return False
