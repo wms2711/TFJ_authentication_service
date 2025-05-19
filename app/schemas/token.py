@@ -44,8 +44,38 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 class ForgotPasswordRequest(BaseModel):
+    """
+    Request model for initiating the forgot password process.
+    
+    Used in:
+    - /forgot-password endpoint
+    
+    Attributes:
+        email (EmailStr): The user's registered email address for sending the reset link.
+        
+    Example:
+        {
+            "email": "user@example.com"
+        }
+    """
     email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
+    """
+    Request model for submitting a new password using a reset token.
+    
+    Used in:
+    - /reset-password endpoint
+    
+    Attributes:
+        token (str): The password reset token sent to the user's email.
+        new_password (str): The new password the user wants to set.
+        
+    Example:
+        {
+            "token": "eyJhbGciOiJIUzI1...",
+            "new_password": "newSecurePassword123"
+        }
+    """
     token: str
     new_password: str

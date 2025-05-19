@@ -37,7 +37,7 @@ class User(Base):
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     # Relationship to application (one-to-one)
-    application = relationship("Application", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    # application = relationship("Application", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):
         """

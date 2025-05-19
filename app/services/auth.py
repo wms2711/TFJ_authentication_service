@@ -227,6 +227,16 @@ class AuthService:
         return UserInDB.model_validate(user)
     
     def verify_reset_token(self, token: str) -> str:
+        """
+        Decode and validate a password reset token.
+
+        Args:
+            token (str): JWT token received from password reset link.
+
+        Returns:
+            str: Email address if token is valid and purpose is 'password_reset'.
+            None: If token is invalid, expired, or has wrong purpose.
+        """
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
             email: str = payload.get("sub")

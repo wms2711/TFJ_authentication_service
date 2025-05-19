@@ -58,10 +58,38 @@ class UserInDB(UserBase):
         from_attributes = True
 
 class UserUpdate(BaseModel):
+    """
+    Schema for updating user profile data.
+    
+    Used in:
+    - PATCH /users/{id} or /users/me endpoints
+    
+    Attributes:
+        username (Optional[str]): New username (if being updated)
+        email (Optional[str]): New email address (if being updated)
+        full_name (Optional[str]): New display name (optional)
+        is_active (Optional[bool]): Account activation status (admin-controlled)
+    
+    Notes:
+        Only fields provided in the request will be updated.
+    """
     username: Optional[str] = None
     email: Optional[str] = None
     full_name: Optional[str] = None
     is_active: Optional[bool] = None
 
 class UserPasswordUpdate(BaseModel):
+    """
+    Schema for updating a user's password.
+    
+    Used in:
+    - PUT /users/{id}/password
+    - User-initiated password change workflows
+    
+    Attributes:
+        new_password (str): The new password to be set. Should meet application-defined strength criteria.
+        
+    Security:
+        Password is expected to be hashed before persistence.
+    """
     new_password: str

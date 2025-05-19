@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.user import User
-from app.schemas.user import UserCreate, UserInDB, UserUpdate
+from app.schemas.user import UserCreate, UserInDB, UserUpdate, UserPasswordUpdate
 from app.services.auth import AuthService
 
 class UserService:
@@ -82,7 +82,7 @@ class UserService:
         
         await self.db.commit()
 
-    async def update_password(self, user_id: int, new_password: str) -> User:
+    async def update_password(self, user_id: int, new_password: UserPasswordUpdate) -> User:
         """Update user password and return updated user object
         
         Args:

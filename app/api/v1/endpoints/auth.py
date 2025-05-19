@@ -138,17 +138,17 @@ async def forgot_password(
     """
     Initiate password reset process.
     
-    1. Checks if email exists in system
-    2. Generates time-limited reset token (expires in 15 mins)
-    3. Sends email with reset link containing token
+    1. Checks if email exists in system.
+    2. Generates time-limited reset token (expires in 15 mins).
+    3. Sends email with reset link containing token.
     
     Args:
-        request: Contains user's email address
-        background_tasks: FastAPI background tasks for sending email async
-        db: Async database session
+        request: Contains user's email address.
+        background_tasks: FastAPI background tasks for sending email async.
+        db: Async database session.
     
     Returns:
-        Message confirming reset email was sent (even if email doesn't exist)
+        Message confirming reset email was sent (even if email doesn't exist).
     """
     auth_service = AuthService(db)
     email_service = EmailService()
@@ -184,20 +184,20 @@ async def reset_password(
     Reset user password using valid reset token.
     
     Flow:
-    1. Verifies the reset token is valid and not expired
-    2. Checks if new password meets complexity requirements
-    3. Updates user's password in database
-    4. Invalidates the used token
+    1. Verifies the reset token is valid and not expired.
+    2. Checks if new password meets complexity requirements.
+    3. Updates user's password in database.
+    4. Invalidates the used token.
     
     Args:
-        request: Contains reset token and new password
-        db: Async database session
+        request: Contains reset token and new password.
+        db: Async database session.
     
     Returns:
-        Success message if password was reset
+        Success message if password was reset.
         
     Raises:
-        HTTPException: 400 if token is invalid/expired or password fails validation
+        HTTPException: 400 if token is invalid/expired or password fails validation.
     """
     auth_service = AuthService(db)
     user_service = UserService(db)
