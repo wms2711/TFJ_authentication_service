@@ -193,8 +193,3 @@ async def verify_email(
         await user_service.mark_email_as_verified(email)
 
         return {"message": "Email successfully verified"}
-
-# To implement:
-# - POST /users/send-verification for new sign-ups and need to verify their email address, send email verification link.
-# - PATCH /users/me to update own profile
-# - DELETE /users/me to self-delete profile

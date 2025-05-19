@@ -36,7 +36,7 @@ app.include_router(user.router)
 app.include_router(profile.router)
 app.include_router(applications.router)
 
-# To implement:
+# TODO implement:
 # - /admin endpoints for admin-only operations 
     # GET /admin/users to list all user
     # PATCH /admin/users/{id}/status for admin to deactivate or activate users
