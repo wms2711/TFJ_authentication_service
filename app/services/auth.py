@@ -225,3 +225,15 @@ class AuthService:
             log.warning(f"Inactive user access attempt: {user.username}")
             raise HTTPException(status_code=400, detail="Inactive user")
         return UserInDB.model_validate(user)
+    
+    def verify_reset_token(self, token: str) -> str:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            email: str = payload.get("sub")
+            purpose: str = payload.get("purpose")
+            
+            if email is None or purpose != "password_reset":
+                return None
+            return email
+        except Exception as e:
+            return None

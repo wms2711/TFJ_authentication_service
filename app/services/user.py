@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.user import User
-from app.schemas.user import UserCreate, UserInDB
+from app.schemas.user import UserCreate, UserInDB, UserUpdate
 from app.services.auth import AuthService
 
 class UserService:
@@ -68,6 +68,50 @@ class UserService:
         await self.db.commit()
         await self.db.refresh(db_user)
         return db_user
+    
+    async def update_user(self, user_id: int, update_data: dict) -> None:
+        """Basic user update without validations"""
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        
+        if not user:
+            raise ValueError("User not found")
+        
+        for field, value in update_data.items():
+            setattr(user, field, value)
+        
+        await self.db.commit()
+
+    async def update_password(self, user_id: int, new_password: str) -> User:
+        """Update user password and return updated user object
+        
+        Args:
+            user_id: ID of user to update
+            new_password: Plain text new password
+            
+        Returns:
+            Updated User object
+            
+        Raises:
+            ValueError: If user not found
+        """
+        # Get user from database
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalars().first()
+        
+        if not user:
+            raise ValueError("User not found")
+        
+        # Hash the new password
+        hashed_password = AuthService(self.db).get_password_hash(new_password)
+        
+        # Update and commit
+        user.hashed_password = hashed_password
+        await self.db.commit()
+        await self.db.refresh(user)
+        
+        return user
+
 
     # def get_user_by_username(self, username: str) -> User | None:
     #     """

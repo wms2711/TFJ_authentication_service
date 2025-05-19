@@ -36,6 +36,9 @@ class User(Base):
     # Relationship to profile (one-to-one)
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
+    # Relationship to application (one-to-one)
+    application = relationship("Application", back_populates="user", uselist=False, cascade="all, delete-orphan")
+
     def __repr__(self):
         """
         Official string representation of User instance.

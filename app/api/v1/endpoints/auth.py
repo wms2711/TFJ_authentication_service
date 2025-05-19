@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 
 from app.database.session import get_db, async_get_db
-from app.schemas.token import Token, ForgotPasswordRequest
+from app.schemas.token import Token, ForgotPasswordRequest, ResetPasswordRequest
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.services.email import EmailService
@@ -175,7 +175,61 @@ async def forgot_password(
 
     return {"message": "Password reset link sent to your email"}
 
-# To implement:
-# - POST /auth/forgot-password for registered users that forgot password and wants to reset it, generate one time-use JWT and sends an email with a link, to set new password (/auth/reset-password).
-# - POST /auth/send-verification for new sign-ups and need to verify their email address, send email verification link.
-# - POST /auth/reset-password to reset password.
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    request: ResetPasswordRequest,
+    db: AsyncSession = Depends(async_get_db)
+):
+    """
+    Reset user password using valid reset token.
+    
+    Flow:
+    1. Verifies the reset token is valid and not expired
+    2. Checks if new password meets complexity requirements
+    3. Updates user's password in database
+    4. Invalidates the used token
+    
+    Args:
+        request: Contains reset token and new password
+        db: Async database session
+    
+    Returns:
+        Success message if password was reset
+        
+    Raises:
+        HTTPException: 400 if token is invalid/expired or password fails validation
+    """
+    auth_service = AuthService(db)
+    user_service = UserService(db)
+    try:
+        # Verify token and get email
+        email = auth_service.verify_reset_token(request.token)
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired token"
+            )
+
+        # TODO optional: Validate user password (e.g. reject less than 8 char), this part can be done in frontend?
+
+        # Get user by email
+        user = await auth_service.get_user_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        # Update password - modified to use user_id instead of email
+        await user_service.update_password(
+            user_id=user.id,
+            new_password=request.new_password
+        )
+
+        # TODO: one-time password reset, won't trigger reset password twice
+    except HTTPException:
+        raise  # Re-raise existing HTTP exceptions
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while resetting password"
+        )

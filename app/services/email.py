@@ -32,7 +32,6 @@ class EmailService:
         )
 
         try:
-            print("HERE sending email")
             api_response = api_instance.send_transac_email(send_email)
             print(f"✅ Password reset sent to {email}")
             return True

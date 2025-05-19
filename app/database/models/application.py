@@ -30,7 +30,7 @@ class Application(Base):
     __tablename__ = "applications"
     
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("user.id"), unique=True, nullable=False)
     job_id = Column(String, index=True, nullable=False)  # External job ID
     
     # Using Enums instead of raw strings

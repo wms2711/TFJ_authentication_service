@@ -56,3 +56,12 @@ class UserInDB(UserBase):
 
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class UserPasswordUpdate(BaseModel):
+    new_password: str

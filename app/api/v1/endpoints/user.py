@@ -68,5 +68,6 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
     return current_user
 
 # To implement:
+# - POST /users/send-verification for new sign-ups and need to verify their email address, send email verification link.
 # - PATCH /users/me to update own profile
 # - DELETE /users/me to self-delete profile
