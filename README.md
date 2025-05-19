@@ -21,9 +21,9 @@ python3 worker.py
 
 ### V1.0
 - Auth and user credentials (login) service
-#### V1.0.1
+###### V1.0.1
 - Forget password logic
-#### V1.0.2
+###### V1.0.2
 - Reset password logic
 
 ### V1.1
@@ -31,7 +31,7 @@ python3 worker.py
 
 ### V1.2
 - Added job application service
-#### V1.2.1
+###### V1.2.1
 - Replaced database session with async session  
   _Reason: To support non-blocking I/O and able to scale_
   
