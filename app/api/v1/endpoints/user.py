@@ -7,7 +7,7 @@ Handles all user-related endpoints including:
 - Current user profile retrieval
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.post("/", response_model=UserInDB)
 async def create_user(
     user: UserCreate, 
+    background_tasks: BackgroundTasks,
     # db: Session = Depends(get_db),
     db: AsyncSession = Depends(async_get_db),
 ):
@@ -55,6 +56,13 @@ async def create_user(
 
     # Generate verification token and send email
     verification_token = auth_service.generate_verification_token(created_user.email)
+
+    # # Send email in background (production)
+    # background_tasks.add_task(
+    #     email_service.send_verification_email,
+    #     email=created_user.email,
+    #     token=verification_token
+    # )
     await email_service.send_verification_email(created_user.email, verification_token)
 
     return created_user

@@ -25,7 +25,48 @@ class EmailService:
         self.configuration = sib_api_v3_sdk.Configuration()
         self.configuration.api_key['api-key'] = settings.BREVO_API_KEY
 
-    async def send_password_reset_email(self, email: str, token: str):
+    def _build_reset_email_content(self, link: str) -> str:
+        return f"""
+            <p>Click below to reset your password:</p>
+            <a href="{link}">Reset Password</a>
+            <p>Link expires in 15 minutes.</p>
+        """
+    
+    def _build_verify_email_content(self, verification_link: str) -> str:
+        return f"""
+            <p>Welcome! Please verify your email address:</p>
+            <a href="{verification_link}">Verify Email</a>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you didn't create an account, please ignore this email.</p>
+        """
+
+    async def _send_email(self, to_email: str, subject: str, html_content: str) -> bool:
+        # Initialize transactional email API client
+        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+            sib_api_v3_sdk.ApiClient(self.configuration)
+        )
+
+        # Define sender and recipient
+        sender = {"name": "JobMatch Team", "email": settings.EMAIL_SENDER}
+        to = [{"email": to_email}]
+
+        # Build the email payload
+        email_data = sib_api_v3_sdk.SendSmtpEmail(
+            sender=sender,
+            to=to,
+            subject=subject,
+            html_content=html_content
+        )
+
+        try:
+            await asyncio.to_thread(api_instance.send_transac_email, email_data)
+            print(f"✅ Email sent to {to_email}")
+            return True
+        except ApiException as e:
+            print(f"❌ Email sending failed: {e}")
+            return False
+
+    async def send_password_reset_email(self, email: str, token: str) -> bool:
         """
         Send password reset email to the specified recipient.
 
@@ -47,36 +88,10 @@ class EmailService:
         """
         # Construct password reset link with query token
         reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-        
-        # Initialize transactional email API client
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
-            sib_api_v3_sdk.ApiClient(self.configuration)
-        )
 
-        # Define sender and recipient
-        sender = {"name": "JobMatch Team", "email": settings.EMAIL_SENDER}
-        to = [{"email": email}]
-        
-        # Build the email payload
-        send_email = sib_api_v3_sdk.SendSmtpEmail(
-            sender=sender,
-            to=to,
-            subject="Password Reset Request",
-            html_content=f"""
-            <p>Click below to reset your password:</p>
-            <a href="{reset_link}">{reset_link}</a>
-            <p>Link expires in 15 minutes.</p>
-            """
-        )
-
-        # Attempt to send email
-        try:
-            api_response = await asyncio.to_thread(api_instance.send_transac_email, send_email)
-            print(f"✅ Password reset sent to {email}")
-            return True
-        except ApiException as e:
-            print(f"❌ Failed to send email: {e}")
-            return False
+        # Define content and send email
+        content = self._build_reset_email_content(reset_link)
+        return await self._send_email(email, "Password Reset Request", content)
         
     async def send_verification_email(self, email: str, token: str) -> bool:
         """
@@ -90,30 +105,7 @@ class EmailService:
             bool: True if email sent successfully, False otherwise.
         """
         verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
-        
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
-            sib_api_v3_sdk.ApiClient(self.configuration)
-        )
 
-        sender = {"name": "JobMatch Team", "email": settings.EMAIL_SENDER}
-        to = [{"email": email}]
-
-        send_email = sib_api_v3_sdk.SendSmtpEmail(
-            sender=sender,
-            to=to,
-            subject="Verify Your Email Address",
-            html_content=f"""
-            <p>Welcome! Please verify your email address:</p>
-            <a href="{verification_link}">Verify Email</a>
-            <p>This link will expire in 24 hours.</p>
-            <p>If you didn't create an account, please ignore this email.</p>
-            """
-        )
-        
-        try:
-            await asyncio.to_thread(api_instance.send_transac_email, send_email)
-            print(f"✅ Verification email sent to {email}")
-            return True
-        except ApiException as e:
-            print(f"❌ Failed to send verification email: {e}")
-            return False
+        # Define content and send email
+        content = self._build_verify_email_content(verification_link)
+        return await self._send_email(email, "Verify Your Email Address", content)

@@ -166,12 +166,13 @@ async def forgot_password(
         expires_delta=timedelta(minutes=15)
     )
     
-    # Send email in background
-    background_tasks.add_task(
-        email_service.send_password_reset_email,
-        email=user.email,
-        token=reset_token
-    )
+    # # Send email in background (production)
+    # background_tasks.add_task(
+    #     email_service.send_password_reset_email,
+    #     email=user.email,
+    #     token=reset_token
+    # )
+    await email_service.send_password_reset_email(user.email, reset_token)
 
     return {"message": "Password reset link sent to your email"}
 
