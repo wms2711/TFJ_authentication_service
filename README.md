@@ -46,8 +46,8 @@ python3 worker.py
 
 - Redis service remains synchronous  
   _Reason: Our implementation is fire-and-forget (no need to await replies), so async overhead is unnecessary._
-
-
+###### V1.2.2
+- Fetch status of application according to application id
 
 # Add valid header for Authorization example
 | Key           | Value |

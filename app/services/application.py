@@ -31,7 +31,11 @@ class ApplicationService:
         self.db = db
         self.redis = redis
 
-    async def create_application(self, user_id: int, job_id: str) -> ApplicationOut:
+    async def create_application(
+            self, 
+            user_id: int, 
+            job_id: str
+        ) -> ApplicationOut:
         """
         Submit a new job application.
 
@@ -166,8 +170,10 @@ class ApplicationService:
                 detail=f"Failed to update application: {str(e)}"
             )
 
-    
-    async def get_application_status(self, app_id: int) -> ApplicationOut:
+    async def get_application_status(
+            self, 
+            app_id: int
+        ) -> ApplicationOut:
         """
         Get existing application.
 
@@ -183,10 +189,29 @@ class ApplicationService:
         Raises:
             HTTPException: 404 if application not found.
         """
-        stmt = select(Application).where(Application.id == app_id)
-        result = await self.db.execute(stmt)
-        app = result.scalar_one_or_none()
-        if not app:
-            raise HTTPException(status_code=404, detail="Application not found")
+        try:
+            # Validate input
+            if not isinstance(app_id, int) or app_id < 1:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid application ID format"
+                )
+            
+            # Get application
+            stmt = select(Application).where(Application.id == app_id)
+            result = await self.db.execute(stmt)
+            application = result.scalar_one_or_none()
+            if not application:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Application not found"
+                )
         
-        return ApplicationOut.model_validate(app)
+            return ApplicationOut.model_validate(application)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve application: {str(e)}"
+            )
