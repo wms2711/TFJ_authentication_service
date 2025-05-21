@@ -73,5 +73,7 @@ class ApplicationUpdate(BaseModel):
         status (Optional[ApplicationStatus]): New application status
         ml_status (Optional[MLTaskStatus]): New ML pipeline status
     """
-    status: Optional[ApplicationStatus]
-    ml_status: Optional[MLTaskStatus]
+    status: Optional[ApplicationStatus] = None
+    ml_status: Optional[MLTaskStatus] = None
+    class Config:
+        extra = "forbid"  # Prevent unexpected fields

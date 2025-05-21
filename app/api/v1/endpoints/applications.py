@@ -97,11 +97,17 @@ async def update_application(
         HTTPException: If the application is not found or update fails.
     """
     application_service = ApplicationService(db=db, redis=None)  # Redis not needed here
-    return await application_service.update_application_status(
-        app_id=app_id,
-        status=updates.status,
-        ml_status=updates.ml_status
-    )
+    # Create a dict of non-None updates to pass to the service
+    update_kwargs = {
+        'app_id': app_id,
+        'status': updates.status,
+        'ml_status': updates.ml_status
+    }
+    
+    # Filter out None values
+    update_kwargs = {k: v for k, v in update_kwargs.items() if v is not None}
+    
+    return await application_service.update_application_status(**update_kwargs)
 
 @router.get("/{app_id}", response_model=ApplicationOut)
 async def get_application(

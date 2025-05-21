@@ -12,9 +12,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.application import Application
 from app.services.redis import RedisService
-from app.schemas.application import ApplicationOut
+from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException
-from typing import Optional
+from typing import Optional, Unpack
 from datetime import datetime
 
 class ApplicationService:
@@ -102,7 +102,11 @@ class ApplicationService:
             print(f"Unexpected error in create_application: {str(e)}", exc_info=True)
             raise ValueError("Failed to create application") from e
     
-    async def update_application_status(self, app_id: int, status: Optional[str] = None, ml_status: Optional[str] = None) -> ApplicationOut:
+    async def update_application_status(
+            self, 
+            app_id: int, 
+            **kwargs: Unpack[ApplicationUpdate]
+        ) -> ApplicationOut:
         """
         Update the status of an existing application.
 
@@ -123,24 +127,45 @@ class ApplicationService:
             HTTPException: 404 if application not found.
             HTTPException: 400 if no fields provided for update.
         """
-        stmt = select(Application).where(Application.id == app_id)
-        result = await self.db.execute(stmt)
-        app = result.scalar_one_or_none()
+        # Validate inputs
+        if not kwargs:
+            raise HTTPException(
+                status_code=400,
+                detail="No fields provided for update"
+            )
+        try:
+            stmt = select(Application).where(Application.id == app_id)
+            result = await self.db.execute(stmt)
+            application = result.scalar_one_or_none()
 
-        if not app:
-            raise HTTPException(status_code=404, detail="Application not found")
+            if not application:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Application not found"
+                )
+            # Apply updates
+            for field, value in kwargs.items():
+                setattr(application, field, value)
+            application.updated_at = datetime.utcnow()
 
-        if not status and not ml_status:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+            await self.db.refresh(application)
+    
+            return ApplicationOut.model_validate(application)
         
-        app.status = status
-        app.ml_status = ml_status
-        app.updated_at = datetime.utcnow()
+        except HTTPException:
+            raise
+        except Exception as e:
+        # Automatic rollback occurs on exception
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update application: {str(e)}"
+            )
 
-        await self.db.commit()
-        await self.db.refresh(app)
-        
-        return ApplicationOut.model_validate(app)
     
     async def get_application_status(self, app_id: int) -> ApplicationOut:
         """
