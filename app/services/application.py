@@ -36,39 +36,71 @@ class ApplicationService:
         Submit a new job application.
 
         Flow:
-        1. Creates a new `Application` DB record.
-        2. Commits to database.
-        3. Publishes application ID to Redis.
+        1. Creates a new `Application` DB record
+        2. Commits to database
+        3. Publishes application ID to Redis
+        4. Returns the created application
 
         Args:
-            user_id (int): ID of the user submitting the application.
-            job_id (str): External job identifier (from job board or catalog).
+            user_id: ID of the user submitting the application
+            job_id: External job identifier (from job board or catalog)
 
         Returns:
-            ApplicationOut: Serialized application details for response.
+            ApplicationOut: Serialized application details
 
         Raises:
-            RuntimeError: If Redis is required but not configured.
+            ValueError: For invalid inputs or database operations
+            RuntimeError: If Redis is required but not configured
+            HTTPException: Should be raised by the router for HTTP status codes
         """
-        app = Application(
-            user_id=user_id,
-            job_id=job_id,
-            status="pending"
-        )
-        self.db.add(app)
-        await self.db.commit()
-        await self.db.refresh(app)
+        try:
+            # # Validate inputs (example - adjust based on your requirements)
+            # if not user_id or user_id < 1:
+            #     raise ValueError("Invalid user ID")
+            # if not job_id or not isinstance(job_id, str):
+            #     raise ValueError("Invalid job ID")
 
-        if not app.id:
-            raise ValueError("Failed to retrieve application ID after insert.")
-        
-        # Publish to Redis
-        if self.redis is None:
-            raise RuntimeError("Redis service is not available. Cannot publish.")
-        
-        self.redis.publish_application(app.id, user_id, job_id)
-        
-        return ApplicationOut.model_validate(app)
+            # Create and save application
+            app = Application(
+                user_id=user_id,
+                job_id=job_id,
+                status="pending"
+            )
+            
+            self.db.add(app)
+            
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+                
+            await self.db.refresh(app)
+
+            if not app.id:
+                raise ValueError("Failed to retrieve application ID after insert")
+
+            # Publish to Redis
+            try:
+                if self.redis is None:
+                    raise RuntimeError("Redis service not configured")
+                
+                self.redis.publish_application(app.id, user_id, job_id)
+            except Exception as redis_exc:
+                # Log but don't fail the whole operation if Redis fails
+                print(f"Redis publish failed: {str(redis_exc)}")
+                # TODO: Consider whether to continue or raise, based on your requirements
+
+            return ApplicationOut.model_validate(app)
+            
+        except ValueError as ve:
+            await self.db.rollback()
+            print(f"Validation error in create_application: {str(ve)}")
+            raise  # Re-raise for the router to handle
+        except Exception as e:
+            await self.db.rollback()
+            print(f"Unexpected error in create_application: {str(e)}", exc_info=True)
+            raise ValueError("Failed to create application") from e
     
     async def update_application_status(self, app_id: int, status: Optional[str] = None, ml_status: Optional[str] = None) -> ApplicationOut:
         """
