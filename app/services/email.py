@@ -14,6 +14,12 @@ import asyncio
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from app.config import settings
+import logging
+from fastapi import HTTPException, status
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class EmailService:
     """Service for handling emails."""
@@ -25,14 +31,20 @@ class EmailService:
         self.configuration = sib_api_v3_sdk.Configuration()
         self.configuration.api_key['api-key'] = settings.BREVO_API_KEY
 
-    def _build_reset_email_content(self, link: str) -> str:
+    def _build_reset_email_content(
+            self, 
+            link: str
+        ) -> str:
         return f"""
             <p>Click below to reset your password:</p>
             <a href="{link}">Reset Password</a>
             <p>Link expires in 15 minutes.</p>
         """
     
-    def _build_verify_email_content(self, verification_link: str) -> str:
+    def _build_verify_email_content(
+            self, 
+            verification_link: str
+        ) -> str:
         return f"""
             <p>Welcome! Please verify your email address:</p>
             <a href="{verification_link}">Verify Email</a>
@@ -40,58 +52,84 @@ class EmailService:
             <p>If you didn't create an account, please ignore this email.</p>
         """
 
-    async def _send_email(self, to_email: str, subject: str, html_content: str) -> bool:
-        # Initialize transactional email API client
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
-            sib_api_v3_sdk.ApiClient(self.configuration)
-        )
+    async def _send_email(
+            self, 
+            to_email: str, 
+            subject: str, 
+            html_content: str
+        ) -> bool:
+        """
+        Internal utility to send an email asynchronously via Brevo API.
 
-        # Define sender and recipient
-        sender = {"name": "JobMatch Team", "email": settings.EMAIL_SENDER}
-        to = [{"email": to_email}]
+        Args:
+            to_email (str): Recipient email.
+            subject (str): Email subject.
+            html_content (str): HTML body content.
 
-        # Build the email payload
-        email_data = sib_api_v3_sdk.SendSmtpEmail(
-            sender=sender,
-            to=to,
-            subject=subject,
-            html_content=html_content
-        )
+        Returns:
+            bool: True if sent successfully, False otherwise.
 
+        Raises:
+            ApiException: Failed sending email.
+        """
         try:
+            # Initialize transactional email API client
+            api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+                sib_api_v3_sdk.ApiClient(self.configuration)
+            )
+
+            # Define sender and recipient
+            sender = {"name": "JobMatch Team", "email": settings.EMAIL_SENDER}
+            to = [{"email": to_email}]
+
+            # Build the email payload
+            email_data = sib_api_v3_sdk.SendSmtpEmail(
+                sender=sender,
+                to=to,
+                subject=subject,
+                html_content=html_content
+            )
+
             await asyncio.to_thread(api_instance.send_transac_email, email_data)
-            print(f"✅ Email sent to {to_email}")
+            logger.info(f"✅ Email sent to {to_email}")
             return True
-        except ApiException as e:
-            print(f"❌ Email sending failed: {e}")
+        
+        except ApiException as api_exc:
+            logger.error(f"Brevo APIException when sending email to {to_email}: {str(api_exc)}")
+            return False
+        except Exception as e:
+            logger.exception(f"Unexpected error sending email to {to_email}: {str(e)}")
             return False
 
-    async def send_password_reset_email(self, email: str, token: str) -> bool:
+    async def send_password_reset_email(
+            self, 
+            email: str, 
+            token: str
+        ) -> bool:
         """
-        Send password reset email to the specified recipient.
+        Send password reset email with reset link.
 
         Args:
             email (str): Recipient's email address.
-            token (str): JWT reset token (usually expires in 15 mins).
+            token (str): JWT reset token.
 
         Returns:
             bool: True if email sent successfully, False otherwise.
-
-        Email Contents:
-            - Contains a reset link pointing to the frontend's reset-password page
-            - Token is appended as a query param
-            - HTML email with expiration note
-
-        Technical Notes:
-            - Uses Brevo's TransactionalEmailsApi via the official SDK
-            - Runs the blocking `send_transac_email` call in a thread to avoid blocking the event loop
         """
-        # Construct password reset link with query token
-        reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+        try:
+            # Construct password reset link with query token
+            reset_link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
 
-        # Define content and send email
-        content = self._build_reset_email_content(reset_link)
-        return await self._send_email(email, "Password Reset Request", content)
+            # Define content and send email
+            content = self._build_reset_email_content(reset_link)
+            return await self._send_email(email, "Password Reset Request", content)
+        
+        except Exception as e:
+            logger.exception(f"Failed to send password reset email to {email}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send password reset email"
+            )
         
     async def send_verification_email(self, email: str, token: str) -> bool:
         """
@@ -104,8 +142,17 @@ class EmailService:
         Returns:
             bool: True if email sent successfully, False otherwise.
         """
-        verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+        try:
+            verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
 
-        # Define content and send email
-        content = self._build_verify_email_content(verification_link)
-        return await self._send_email(email, "Verify Your Email Address", content)
+            # Define content and send email
+            content = self._build_verify_email_content(verification_link)
+            return await self._send_email(email, "Verify Your Email Address", content)
+        
+        except Exception as e:
+            logger.exception(f"Failed to send verification email to {email}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email"
+            )
+

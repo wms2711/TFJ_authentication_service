@@ -21,6 +21,11 @@ from app.services.user import UserService
 from app.services.email import EmailService
 from app.database.models.user import User
 from app.config import settings
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Initialize router with prefix and tags for OpenAPI docs
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -161,7 +166,9 @@ async def forgot_password(
     #     email=user.email,
     #     token=reset_token
     # )
-    await email_service.send_password_reset_email(user.email, reset_token)
+    success = await email_service.send_password_reset_email(user.email, reset_token)
+    if not success:
+        logger.error(f"Failed to send reset email to {user.email}")
 
     return {"message": "Password reset link sent to your email"}
 
