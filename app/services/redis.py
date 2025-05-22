@@ -13,6 +13,11 @@ Used by:
 import redis
 import json
 from app.config import settings
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class RedisService:
     """Main redis service handling job application messaging."""
@@ -36,7 +41,12 @@ class RedisService:
         self.stream_key = settings.REDIS_STREAM_KEY
         self.pubsub_channel = "ml_requests"
 
-    def publish_application(self, application_id: int, user_id: int, job_id: str):
+    def publish_application(
+            self, 
+            application_id: int, 
+            user_id: int, 
+            job_id: str
+        ):
         """
         Publish application event to Redis Pub/Sub and Stream.
         
@@ -57,22 +67,39 @@ class RedisService:
                 "status": "pending"
             }
         """
-        # Publish to both Pub/Sub and Streams
-        self.client.publish(
-            self.pubsub_channel,
-            json.dumps({"application_id": application_id})
-        )
-
-        # Add to durable stream for tracking and history (local storage)
-        self.client.xadd(
-            name=self.stream_key,
-            fields={
+        try:
+            message = {
                 "application_id": application_id,
                 "user_id": user_id,
                 "job_id": job_id,
                 "status": "pending"
-            },
-            maxlen=10000  # Retain only the latest 10000 records
-        )
+            }
+
+            # Publish to both Pub/Sub and Streams
+            self.client.publish(
+                self.pubsub_channel,
+                json.dumps({"application_id": application_id})
+            )
+
+            # Add to durable stream for tracking and history (local storage)
+            self.client.xadd(
+                name=self.stream_key,
+                fields=message,
+                maxlen=10000  # Retain only the latest 10000 records
+            )
+            logger.info(f"📤 Published application {application_id} to Redis.")
+
+        except redis.RedisError as e:
+            logger.exception(f"❌ Redis publish failed: {str(e)}")
+            raise RuntimeError("Failed to publish application event to Redis") from e
 
         # TODO: Stream, to continue store locally? Redis cloud? AWS ElastiCache?
+
+    def is_connected(self) -> bool:
+        """
+        Healthcheck for Redis.
+        """
+        try:
+            return self.client.ping()
+        except redis.RedisError:
+            return False
