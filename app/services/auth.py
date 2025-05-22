@@ -9,7 +9,7 @@ Core service handling all authentication-related operations:
 """
 
 from datetime import datetime, timedelta
-from jose import JWTError, jwt
+from jose import JWTError, jwt, ExpiredSignatureError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -23,9 +23,10 @@ from app.config import settings
 import logging
 from app.schemas.user import UserInDB
 import uuid
+from typing import Optional
 
 # Configure logging
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # Password hashing configuration using bcrypt algorithm
@@ -37,7 +38,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 class AuthService:
     """Main authentication service handling security operations."""
 
-    def __init__(self, db: AsyncSession = Depends(async_get_db)):
+    def __init__(
+            self, 
+            db: AsyncSession = Depends(async_get_db)
+        ):
         """
         Initialize with database session.
         
@@ -46,7 +50,11 @@ class AuthService:
         """
         self.db = db
 
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+    def verify_password(
+            self, 
+            plain_password: str, 
+            hashed_password: str
+        ) -> bool:
         """
         Verify a plain password against its hashed version.
         
@@ -57,9 +65,16 @@ class AuthService:
         Returns:
             bool: True if password matches hash.
         """
-        return pwd_context.verify(plain_password, hashed_password)
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except Exception as e:
+            logger.error("Password verification failed", exc_info=True)
+            return False
 
-    def get_password_hash(self, password: str) -> str:
+    def get_password_hash(
+            self, 
+            password: str
+        ) -> str:
         """
         Generate secure password hash.
         
@@ -71,7 +86,10 @@ class AuthService:
         """
         return pwd_context.hash(password)
 
-    async def get_user(self, username: str) -> User | None:
+    async def get_user(
+            self, 
+            username: str
+        ) -> User:
         """
         Retrieve user by username to query database.
         
@@ -80,13 +98,38 @@ class AuthService:
             
         Returns:
             User: SQLAlchemy User model if found.
-            None: If user doesn't exist.
+
+        Raises:
+            HTTPException: 
+                - 404 if user not found.
+                - 500 if a database error occurs.
         """
-        stmt = select(User).where(User.username == username)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        try:
+            stmt = select(User).where(User.username == username)
+            result = await self.db.execute(stmt)
+            user = result.scalar_one_or_none()
+
+            if not user:
+                logger.warning(f"User not found with email: {user}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"User with username '{username}' not found"
+                )
+            return user
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Database error fetching user: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve user information"
+            )
     
-    async def get_user_by_email(self, email: str) -> User | None:
+    async def get_user_by_email(
+            self, 
+            email: str
+        ) -> User:
         """
         Retrieve user by email to query database.
         
@@ -95,13 +138,38 @@ class AuthService:
             
         Returns:
             User: SQLAlchemy User model if found.
-            None: If user doesn't exist.
+            
+        Raises:
+            HTTPException: 
+                - 404 if user not found.
+                - 500 if a database error occurs.
         """
-        stmt = select(User).where(User.email == email)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        try:
+            stmt = select(User).where(User.email == email)
+            result = await self.db.execute(stmt)
+            email = result.scalar_one_or_none()
 
-    async def authenticate_user(self, username: str, password: str) -> User | None:
+            if not email:
+                logger.warning(f"User not found with email: {email}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"User with email '{email}' not found"
+                )
+            return email
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Database error fetching user: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve user information"
+            )
+
+    async def authenticate_user(
+            self, 
+            username: str, 
+            password: str
+        ) -> User:
         """
         Authenticate user credentials.
         
@@ -110,35 +178,72 @@ class AuthService:
             password (str): Plain text password.
             
         Returns:
-            User: If credentials are valid.
-            None: If authentication fails.
-        """
-        user = await self.get_user(username)
-        if not user or not self.verify_password(password, user.hashed_password):
-            log.warning(f"Failed login attempt for username: {username}")
-            return None
-        return user
+            User: The authenticated user object.
 
-    def create_access_token(self, data: dict, expires_delta: timedelta | None = None) -> str:
+        Raises:
+            HTTPException: 401 Unauthorized if authentication fails.
+            HTTPException: 500 Internal Server Error on unexpected failure.
+        """
+        try:
+            user = await self.get_user(username)
+            if not user or not self.verify_password(password, user.hashed_password):
+                logger.warning(f"Failed login attempt for username: {username}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid username or password"
+                )
+            logger.info(f"User authenticated: {username}")
+            return user
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error during authentication for {username}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Authentication service error"
+            )
+
+
+    def create_access_token(
+            self, 
+            data: dict, 
+            expires_delta: Optional[timedelta] = None
+        ) -> str:
         """
         Generate JWT access token.
         
         Args:
             data (dict): Payload to encode (should contain 'sub' claim).
-            expires_delta (timedelta): Optional token lifetime.
+            expires_delta (Optional[timedelta]): Optional token lifetime.
             
         Returns:
             str: Encoded JWT token.
+
+        Raises:
+            RuntimeError: If token creation fails due to encoding error.
         """
-        to_encode = data.copy()
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=15)
-        to_encode.update({"exp": expire})
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        try:
+            to_encode = data.copy()
+            if expires_delta:
+                expire = datetime.utcnow() + expires_delta
+            else:
+                expire = datetime.utcnow() + timedelta(minutes=15)
+            to_encode.update({"exp": expire})
+            encoded_jwt = jwt.encode(
+                to_encode, 
+                settings.SECRET_KEY, 
+                algorithm=settings.ALGORITHM
+            )
+            return encoded_jwt
+        except JWTError as e:
+            logger.error("JWT encoding error", exc_info=True)
+            raise RuntimeError("Failed to generate access token") from e
     
-    def create_reset_token(self, email: str, expires_delta: timedelta | None = None) -> str:
+    def create_reset_token(
+            self, 
+            email: str, 
+            expires_delta: Optional[timedelta] = None
+        ) -> str:
         """
         Generate a one-time-use JWT token for password reset.
         
@@ -149,31 +254,42 @@ class AuthService:
                 
         Returns:
             str: Encoded JWT token containing:
-                - sub: User's email (subject claim)
-                - exp: Expiration timestamp
-                - jti: Unique token identifier (for one-time use tracking)
+                - sub: User's email (subject claim).
+                - exp: Expiration timestamp.
+                - jti: Unique token identifier (for one-time use tracking).
+                - purpose: "password_reset".
                 
-        Security Notes:
-            1. Tokens should be short-lived (recommended 15-30 minute expiry)
-            2. Always use HTTPS for token transmission
-            3. Tokens should be single-use (track usage in database/Redis)
+        Raises:
+            RuntimeError: If JWT encoding fails.
         """
-        to_encode = {
-            "sub": email,
-            "jti": str(uuid.uuid4()),  # Unique token ID for one-time use tracking
-            "purpose": "password_reset"  # Explicit token purpose
-        }
+        try:
+            to_encode = {
+                "sub": email,
+                "jti": str(uuid.uuid4()),  # Unique token ID for one-time use tracking
+                "purpose": "password_reset"  # Explicit token purpose
+            }
         
-        # Set expiration (default 15 minutes if not specified)
-        if expires_delta:
-            expire = datetime.utcnow() + expires_delta
-        else:
-            expire = datetime.utcnow() + timedelta(minutes=15)
+            # Set expiration (default 15 minutes if not specified)
+            if expires_delta:
+                expire = datetime.utcnow() + expires_delta
+            else:
+                expire = datetime.utcnow() + timedelta(minutes=15)
         
-        to_encode.update({"exp": expire})
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+            to_encode.update({"exp": expire})
+            token = jwt.encode(
+                to_encode,
+                settings.SECRET_KEY,
+                algorithm=settings.ALGORITHM
+            )
+            return token
+        except JWTError as e:
+            logger.error("JWT reset token encoding failed", exc_info=True)
+            raise RuntimeError("Failed to generate reset token") from e
 
-    async def get_current_user(self, token: str = Depends(oauth2_scheme)) -> User:
+    async def get_current_user(
+            self, 
+            token: str = Depends(oauth2_scheme)
+        ) -> User:
         """
         Validate JWT and return corresponding user.
         
@@ -192,22 +308,30 @@ class AuthService:
             headers={"WWW-Authenticate": "Bearer"},
         )
         try:
-            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            payload = jwt.decode(
+                token, 
+                settings.SECRET_KEY, 
+                algorithms=[settings.ALGORITHM]
+            )
             username: str = payload.get("sub")
-            if username is None:
+            if not username:
+                logger.warning("JWT missing 'sub' claim")
                 raise credentials_exception
             token_data = TokenData(username=username)
         except JWTError as e:
-            log.error(f"JWT validation failed: {e}")
+            logger.error(f"JWT validation failed: {str(e)}", exc_info=True)
             raise credentials_exception
         
         user = await self.get_user(username=token_data.username)
-        if user is None:
-            log.warning(f"Token valid but user not found: {username}")
+        if not user:
+            logger.warning(f"Token valid but user not found: {username}")
             raise credentials_exception
         return user
     
-    async def get_current_active_user(self, token: str = Depends(oauth2_scheme)) -> UserInDB:
+    async def get_current_active_user(
+            self, 
+            token: str = Depends(oauth2_scheme)
+        ) -> UserInDB:
         """
         Get currently authenticated user (active only).
         
@@ -222,12 +346,15 @@ class AuthService:
         """
         user = await self.get_current_user(token)
         if not user.is_active:
-            log.warning(f"Inactive user access attempt: {user.username}")
-            raise HTTPException(status_code=400, detail="Inactive user")
+            logger.warning(f"Inactive user access attempt: {user.username}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user account")
         return UserInDB.model_validate(user)
     
-    def verify_reset_token(self, token: str) -> str:
-        """
+    def verify_reset_token(
+            self, 
+            token: str
+        ) -> str | None:
+        """ 
         Decode and validate a password reset token.
 
         Args:
@@ -242,13 +369,26 @@ class AuthService:
             email: str = payload.get("sub")
             purpose: str = payload.get("purpose")
             
-            if email is None or purpose != "password_reset":
+            if not email or purpose != "password_reset":
+                logger.warning("Invalid reset token purpose or missing subject ('purpose' field in token).")
                 return None
+            
             return email
-        except Exception as e:
-            return None
         
-    def verify_email_token(self, token: str) -> str | None:
+        except ExpiredSignatureError:
+            logger.warning("Password reset token expired.")
+        except JWTError as e:
+            logger.error(f"Invalid JWT during reset verification: {e}")
+        except Exception as e:
+            logger.exception(f"Unexpected error verifying reset token: {e}")
+
+        return None
+
+        
+    def verify_email_token(
+            self, 
+            token: str
+        ) -> str | None:
         """
         Verify email verification token and return email if valid.
         
@@ -263,13 +403,25 @@ class AuthService:
             email: str = payload.get("sub")
             purpose: str = payload.get("purpose")
             
-            if email is None or purpose != "email_verification":
+            if not email or purpose != "email_verification":
+                logger.warning("Invalid email verification token: missing subject or wrong purpose.")
                 return None
+            
             return email
-        except Exception as e:
-            return None
         
-    def generate_verification_token(self, email: str) -> str:
+        except ExpiredSignatureError:
+            logger.warning("Email verification token expired.")
+        except JWTError as e:
+            logger.error(f"JWT error during email token verification: {e}")
+        except Exception as e:
+            logger.exception(f"Unexpected error verifying email token: {e}")
+
+        return None
+        
+    def generate_verification_token(
+            self, 
+            email: str
+        ) -> str:
         """
         Generate a JWT token for email verification.
         
@@ -278,16 +430,28 @@ class AuthService:
             
         Returns:
             str: Encoded JWT token containing:
-                - sub: User's email
-                - exp: Expiration timestamp (24 hours)
-                - jti: Unique token ID
-                - purpose: "email_verification"
+                - sub: User's email.
+                - exp: Expiration timestamp (24 hours).
+                - jti: Unique token ID.
+                - purpose: "email_verification".
         """
-        to_encode = {
-            "sub": email,
-            "jti": str(uuid.uuid4()),
-            "purpose": "email_verification"  # Explicit token purpose
-        }
-        expire = datetime.utcnow() + timedelta(hours=24)  # 24 hours expiry
-        to_encode.update({"exp": expire})
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+        try:
+            expire = datetime.utcnow() + timedelta(hours=24)  # 24 hours expiry
+            to_encode = {
+                "sub": email,
+                "jti": str(uuid.uuid4()),
+                "purpose": "email_verification"  # Explicit token purpose
+            }
+            to_encode.update({"exp": expire})
+            token = jwt.encode(
+                to_encode, 
+                settings.SECRET_KEY, 
+                algorithm=settings.ALGORITHM
+            )
+            return token
+        except Exception as e:
+            logger.exception(f"Failed to generate verification token for {email}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to generate email verification token"
+            )
