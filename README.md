@@ -49,6 +49,9 @@ python3 worker.py
 ###### V1.2.2
 - Fetch status of application according to application id
 
+### V1.3
+- Added redis service
+
 # Add valid header for Authorization example
 | Key           | Value |
 |---------------|-------|
