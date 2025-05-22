@@ -186,7 +186,7 @@ class AuthService:
         """
         try:
             user = await self.get_user(username)
-            if not user or not self.verify_password(password, user.hashed_password):
+            if not self.verify_password(password, user.hashed_password):
                 logger.warning(f"Failed login attempt for username: {username}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -202,7 +202,6 @@ class AuthService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Authentication service error"
             )
-
 
     def create_access_token(
             self, 

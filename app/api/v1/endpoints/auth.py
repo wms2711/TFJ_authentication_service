@@ -56,12 +56,6 @@ async def login(
 
     # Authenticate user credentials
     user = await auth_service.authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
     
     # Generate token with expiration
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -155,11 +149,6 @@ async def forgot_password(
 
     # Check if user exists
     user = await auth_service.get_user_by_email(request.email)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User with this email does not exist"
-        )    
     # Generate reset token
     reset_token = auth_service.create_reset_token(
         email=user.email,
@@ -215,11 +204,7 @@ async def reset_password(
 
         # Get user by email
         user = await auth_service.get_user_by_email(email)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
+        
         # Update password - modified to use user_id instead of email
         await user_service.update_password(
             user_id=user.id,
