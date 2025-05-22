@@ -16,6 +16,11 @@ from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException, status
 from typing import Optional, Unpack
 from datetime import datetime
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class ApplicationService:
     """Main application service handling job applications."""
@@ -92,18 +97,18 @@ class ApplicationService:
                 self.redis.publish_application(app.id, user_id, job_id)
             except Exception as redis_exc:
                 # Log but don't fail the whole operation if Redis fails
-                print(f"Redis publish failed: {str(redis_exc)}")
+                logger.error(f"Redis publish failed: {str(redis_exc)}")
                 # TODO: Consider whether to continue or raise, based on your requirements
 
             return ApplicationOut.model_validate(app)
             
         except ValueError as ve:
             await self.db.rollback()
-            print(f"Validation error in create_application: {str(ve)}")
+            logger.error(f"Validation error in create_application: {str(ve)}")
             raise  # Re-raise for the router to handle
         except Exception as e:
             await self.db.rollback()
-            print(f"Unexpected error in create_application: {str(e)}", exc_info=True)
+            logger.error(f"Unexpected error in create_application: {str(e)}", exc_info=True)
             raise ValueError("Failed to create application") from e
     
     async def update_application_status(
