@@ -18,7 +18,6 @@ python3 worker.py
 ```
 
 # Version History
-
 ### V1.0.0
 - Auth and user credentials (login) service
 ###### V1.0.1
