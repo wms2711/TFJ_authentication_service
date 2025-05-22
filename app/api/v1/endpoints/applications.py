@@ -62,9 +62,15 @@ async def create_application(
             job_id=app_data.job_id
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail=str(e)
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to create application")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail="Failed to create application"
+        )
 
     return application
 

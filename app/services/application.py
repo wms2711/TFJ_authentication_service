@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.application import Application
 from app.services.redis import RedisService
 from app.schemas.application import ApplicationOut, ApplicationUpdate
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from typing import Optional, Unpack
 from datetime import datetime
 
@@ -134,7 +134,7 @@ class ApplicationService:
         # Validate inputs
         if not kwargs:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No fields provided for update"
             )
         try:
@@ -144,7 +144,7 @@ class ApplicationService:
 
             if not application:
                 raise HTTPException(
-                    status_code=404, 
+                    status_code=status.HTTP_404_NOT_FOUND, 
                     detail="Application not found"
                 )
             # Apply updates
@@ -166,7 +166,7 @@ class ApplicationService:
         except Exception as e:
         # Automatic rollback occurs on exception
             raise HTTPException(
-                status_code=500,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to update application: {str(e)}"
             )
 
@@ -193,7 +193,7 @@ class ApplicationService:
             # Validate input
             if not isinstance(app_id, int) or app_id < 1:
                 raise HTTPException(
-                    status_code=400,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid application ID format"
                 )
             
@@ -203,7 +203,7 @@ class ApplicationService:
             application = result.scalar_one_or_none()
             if not application:
                 raise HTTPException(
-                    status_code=404, 
+                    status_code=status.HTTP_404_NOT_FOUND, 
                     detail="Application not found"
                 )
         
@@ -212,6 +212,6 @@ class ApplicationService:
             raise
         except Exception as e:
             raise HTTPException(
-                status_code=500,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve application: {str(e)}"
             )
