@@ -15,6 +15,11 @@ from app.database.models.user import User
 from app.database.models.profile import UserProfile
 from app.schemas.user import UserCreate, UserInDB, UserUpdate, UserPasswordUpdate
 from app.services.auth import AuthService
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class UserService:
     """Main user service handling account management."""
@@ -28,7 +33,10 @@ class UserService:
         """
         self.db = db
 
-    async def create_user(self, user: UserCreate) -> User:
+    async def create_user(
+            self, 
+            user: UserCreate
+        ) -> User:
         """
         Register a new user account.
         
@@ -47,109 +55,182 @@ class UserService:
         Raises:
             HTTPException: 400 if username or email already exists.
         """
-        # Check for existing username
-        username_result = await self.db.execute(
-            select(User).where(User.username == user.username))
-        if username_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered"
+        try:
+            # Check for existing username
+            username_result = await self.db.execute(
+                select(User).where(User.username == user.username)
             )
+            if username_result.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Username already registered"
+                )
         
-        # Check for existing email
-        email_result = await self.db.execute(
-            select(User).where(User.email == user.email))
-        if email_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+            # Check for existing email
+            email_result = await self.db.execute(
+                select(User).where(User.email == user.email)
             )
+            if email_result.scalar_one_or_none():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
         
-        # Hash password before storage
-        hashed_password = AuthService(self.db).get_password_hash(user.password)
+            # Hash password before storage
+            hashed_password = AuthService(self.db).get_password_hash(user.password)
         
-        # Create new user record
-        db_user = User(
-            username=user.username,
-            email=user.email,
-            hashed_password=hashed_password,
-            full_name=user.full_name
-        )
+            # Create new user record
+            db_user = User(
+                username=user.username,
+                email=user.email,
+                hashed_password=hashed_password,
+                full_name=user.full_name
+            )
 
-        # Persist to database
-        self.db.add(db_user)
-        await self.db.commit()
-        await self.db.refresh(db_user)
-        return db_user
+            self.db.add(db_user)
+
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed for {user.email}: {db_exc}")
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+            
+            await self.db.refresh(db_user)
+            return db_user
+        
+        except HTTPException:
+            raise
+        except ValueError:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error during user creation for {user.email}: {e}")
+            raise ValueError("Unexpected error during user creation")
     
-    async def update_user(self, user_id: int, update_data: dict) -> None:
-        """Update user fields and return updated user object.
+    async def update_user(
+            self, 
+            user_id: int, 
+            update_data: UserUpdate
+        ) -> User:
+        """
+        Update user fields and return updated user object.
 
         Args:
-            user_id: ID of the user to update.
-            update_data: Pydantic model containing fields to update.
+            user_id (int): ID of the user to update.
+            update_data (UserUpdate): Pydantic model containing fields to update.
 
         Returns:
-            Updated User object.
+            User: Updated user.
 
         Raises:
-            ValueError: If user not found or email already in use.
+            HTTPException: 404 if user not found.
+            HTTPException: 400 if email already in use.
+            ValueError: On unexpected internal errors.
         """
-        # Retrieve the user from the database
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalars().first()
-        if not user:
-            raise ValueError("User not found")
-        
-        # Extract only provided fields to update
-        data_to_update = update_data.dict(exclude_unset=True)
+        try:
+            # Retrieve the user from the database
+            result = await self.db.execute(
+                select(User).where(User.id == user_id)
+            )
+            user = result.scalars().first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
 
-        # Validate email uniqueness if being changed
-        if "email" in data_to_update and data_to_update["email"] != user.email:
-            existing_user = await AuthService(self.db).get_user_by_email(data_to_update["email"])
-            if existing_user:
-                raise ValueError("Email already in use")
+            # Extract only provided fields to update
+            data_to_update = update_data.dict(exclude_unset=True)
+
+            # Validate email uniqueness if being changed
+            if "email" in data_to_update and data_to_update["email"] != user.email:
+                existing_user = await AuthService(self.db).get_user_by_email_or_none(data_to_update["email"])
+                if existing_user:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Email already in use"
+                    )
             
-        # Update user information
-        for field, value in data_to_update.items():
-            setattr(user, field, value)
-        
-        await self.db.commit()
-        await self.db.refresh(user)
-        
-        return user
+            # Update user information
+            for field, value in data_to_update.items():
+                setattr(user, field, value)
 
-    async def update_password(self, user_id: int, new_password: UserPasswordUpdate) -> User:
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed for user_id={user_id}: {db_exc}")
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+            
+            await self.db.refresh(user)
+            return user
+
+        except HTTPException:
+            raise
+        except ValueError:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error during user update for user_id={user_id}: {e}")
+            raise ValueError("Unexpected error during user patching")
+
+    async def update_password(
+            self, 
+            user_id: int, 
+            new_password: UserPasswordUpdate
+        ) -> User:
         """Update user password and return updated user object.
         
         Args:
-            user_id: ID of user to update.
-            new_password: Plain text new password.
+            user_id (int): ID of user to update.
+            new_password (UserPasswordUpdate): Pydantic model containing the new password.
             
         Returns:
             Updated User object.
             
         Raises:
-            ValueError: If user not found.
+            HTTPException: If user not found.
+            ValueError: On unexpected internal errors.
         """
-        # Get user from database
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalars().first()
+        try:
+            # Get user from database
+            result = await self.db.execute(select(User).where(User.id == user_id))
+            user = result.scalars().first()
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
         
-        if not user:
-            raise ValueError("User not found")
+            # Hash the new password
+            hashed_password = AuthService(self.db).get_password_hash(new_password)
         
-        # Hash the new password
-        hashed_password = AuthService(self.db).get_password_hash(new_password)
+            # Update and commit
+            user.hashed_password = hashed_password
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed for user_id={user_id}: {db_exc}")
+                raise ValueError(f"Database commit failed: {str(db_exc)}")  
+            
+            await self.db.refresh(user)
+            return user
         
-        # Update and commit
-        user.hashed_password = hashed_password
-        await self.db.commit()
-        await self.db.refresh(user)
-        
-        return user
+        except HTTPException:
+            raise
+        except ValueError:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error updating password for user_id={user_id}: {e}")
+            raise ValueError("Unexpected error during password update")
     
-    async def delete_user(self, user_id: int) -> None:
+    async def delete_user(
+            self, 
+            user_id: int
+        ) -> None:
         """
         Permanently delete a user account and related profile.
         
@@ -160,51 +241,89 @@ class UserService:
         4. Commit transaction.
         
         Args:
-            user_id: ID of the user to delete.
+            user_id (int): ID of the user to delete.
             
         Raises:
-            ValueError: If user not found.
-            HTTPException: If deletion fails (converted in router layer).
+            HTTPException: If user not found.
+            ValueError: On unexpected internal errors.
         """
         try:
-            # 1. Get the user with profile eagerly loaded
+            # Get the user with profile eagerly loaded
             result = await self.db.execute(
                 select(User)
                 .where(User.id == user_id)
                 .options(selectinload(User.profile))
             )
             user = result.scalars().first()
-
             if not user:
-                raise ValueError("User not found")
-
-            # 2. Delete associated profile if exists
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            
+            # Delete associated profile if exists
             if user.profile:
                 await self.db.delete(user.profile)
-                await self.db.flush()
             
-            # 3. Delete the user record
+            # Delete the user record
             await self.db.delete(user)
-            await self.db.commit()
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed while deleting user_id={user_id}: {db_exc}")
+                raise ValueError(f"Failed to commit user deletion: {str(db_exc)}")  
             
+        except HTTPException:
+            raise
+        except ValueError:
+            raise
         except Exception as e:
             await self.db.rollback()
-            raise ValueError(f"Failed to delete user: {str(e)}") from e
+            logger.exception(f"Unexpected error during deletion of user_id={user_id}: {e}")
+            raise ValueError("Unexpected error during user deletion") from e
 
-    async def mark_email_as_verified(self, email: str) -> None:
+    async def mark_email_as_verified(
+            self, 
+            email: str
+        ) -> None:
         """
         Mark a user's email as verified in the database.
         
         Args:
             email: Email address to verify
-        """
-        result = await self.db.execute(
-            update(User)
-            .where(User.email == email)
-            .values(email_verified=True)
-        )
-        await self.db.commit()
 
+        Raises:
+            HTTPException: If no user was found with the provided email.
+            ValueError: On unexpected internal errors or DB commit failures.
+        """
+        try:
+            result = await self.db.execute(
+                update(User)
+                .where(User.email == email)
+                .values(email_verified=True)
+            )
+            if result.rowcount == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No user found with email"
+                )
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed while marking email as verified for email={email}: {db_exc}")
+                raise ValueError(f"Failed to commit user deletion: {str(db_exc)}") 
+             
+        except HTTPException:
+            raise
+        except ValueError:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error while marking email as verified for email={email}: {e}")
+            raise ValueError("Unexpected error during marking as verified") from e
+        
     # def get_user_by_username(self, username: str) -> User | None:
     #     """
     #     Retrieve user by unique username.

@@ -68,7 +68,7 @@ class AuthService:
         try:
             return pwd_context.verify(plain_password, hashed_password)
         except Exception as e:
-            logger.error("Password verification failed", exc_info=True)
+            logger.exception("Password verification failed", exc_info=True)
             return False
 
     def get_password_hash(
@@ -120,7 +120,7 @@ class AuthService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Database error fetching user: {str(e)}")
+            logger.exception(f"Database error fetching user: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to retrieve user information"
@@ -159,12 +159,39 @@ class AuthService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Database error fetching user: {str(e)}")
+            logger.exception(f"Database error fetching user: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to retrieve user information"
             )
 
+    async def get_user_by_email_or_none(
+            self, 
+            email: str
+        ) -> Optional[User]:
+        """
+        Returns user by email if exists, else None.
+
+        Args:
+            email (str): Unique email identifier.
+
+        Returns:
+            User: SQLAlchemy User model if found.
+
+        Raises:
+            HTTPException: 
+                - 500 if a database error occurs.
+        """
+        try:
+            stmt = select(User).where(User.email == email)
+            result = await self.db.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.exception(f"Error querying user by email: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error during email check"
+            )
     async def authenticate_user(
             self, 
             username: str, 
