@@ -104,7 +104,7 @@ class ApplicationService:
             
         except ValueError as ve:
             await self.db.rollback()
-            logger.exception(f"Validation error in create_application: {str(ve)}")
+            logger.error(f"Validation error in create_application: {str(ve)}")
             raise  # Re-raise for the router to handle
         except Exception as e:
             await self.db.rollback()
