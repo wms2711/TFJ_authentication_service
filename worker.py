@@ -16,6 +16,10 @@ import asyncio
 from app.config import settings
 from app.database.session import SessionLocal
 from app.services.ml_client import MLClient
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 class RedisWorker:
     def __init__(self):
@@ -29,11 +33,11 @@ class RedisWorker:
         self.redis = None   # Will hold sync Redis connection
         self.max_retries = 3   # Max retries before DLQ
         self.loop = asyncio.new_event_loop()  # Dedicated async loop
-        print("🛠️ Initializing Redis worker...")
+        logger.info("🛠️ Initializing Redis worker...")
 
     def connect_redis(self):
         """Establish synchronous Redis connection with health check"""
-        print(f"🔗 Connecting to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}")
+        logger.info(f"🔗 Connecting to Redis at {settings.REDIS_HOST}:{settings.REDIS_PORT}")
         self.redis = redis.Redis(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
@@ -42,9 +46,9 @@ class RedisWorker:
         )
         try:
             self.redis.ping()   # Connection test
-            print("✅ Redis connection established")
+            logger.info("✅ Redis connection established")
         except redis.ConnectionError as e:
-            print(f"❌ Failed to connect to Redis: {str(e)}")
+            logger.error(f"❌ Failed to connect to Redis: {str(e)}")
             raise
 
     def process_message(self, stream_id, message):
@@ -56,33 +60,38 @@ class RedisWorker:
         Returns:
             bool: True if processed successfully
         """
-        print(f"\n📨 Processing message ID: {stream_id}")
-        print(f"📝 Raw message: {message}")
+        logger.info(f"\n📨 Processing message ID: {stream_id}")
+        logger.info(f"📝 Raw message: {message}")
 
         try:
             app_id = int(message["application_id"])
-            print(f"🔄 Submitting application ID: {app_id} to ML service")
+            logger.info(f"🔄 Submitting application ID: {app_id} to ML service")
 
-            # Bridge async ML call into sync context
-            success = self.loop.run_until_complete(
-                self.ml.submit_application(app_id)
-            )
-
+            try:
+                # Bridge async ML call into sync context
+                success = self.loop.run_until_complete(asyncio.wait_for(
+                    self.ml.submit_application(app_id),
+                    timeout=10
+                ))
+            except asyncio.TimeoutError:
+                logger.error("ML request timeout")
+                return False
+            
             # Database session management (sync, to be changed to async)
             db = SessionLocal()
             try:
                 if success:
                     self.redis.xack(settings.REDIS_STREAM_KEY, "ml_worker", stream_id)
-                    print(f"✔ Successfully processed message ID: {stream_id}")
+                    logger.info(f"✔ Successfully processed message ID: {stream_id}")
                     return True
                 else:
-                    print(f"⚠️ ML service returned failure for message ID: {stream_id}")
+                    logger.warning(f"⚠️ ML service returned failure for message ID: {stream_id}")
                     return False
             finally:
                 db.close()
 
         except Exception as e:
-            print(f"❌ Error processing message ID {stream_id}: {str(e)}")
+            logger.exception(f"❌ Error processing message ID {stream_id}: {str(e)}")
             return False
 
     def handle_failure(self, message, stream_id, error):
@@ -94,13 +103,13 @@ class RedisWorker:
         retries = int(message.get("retries", 0))
         if retries < self.max_retries:
             new_retry = retries + 1
-            print(f"♻️ Retrying message (attempt {new_retry}/{self.max_retries})")
+            logger.info(f"♻️ Retrying message (attempt {new_retry}/{self.max_retries})")
             self.redis.xadd(
                 settings.REDIS_STREAM_KEY,
                 {**message, "retries": new_retry}
             )
         else:
-            print(f"☠️ Moving message to DLQ after {self.max_retries} retries")
+            logger.info(f"☠️ Moving message to DLQ after {self.max_retries} retries")
             self.redis.xadd(
                 settings.REDIS_DEAD_STREAM_KEY,
                 {**message, "final_error": str(error)}
@@ -110,7 +119,7 @@ class RedisWorker:
         """Main processing loop"""
         self.connect_redis()
         last_id = "$"   # Start from newest message
-        print(f"👂 Listening to Redis stream: {settings.REDIS_STREAM_KEY}")
+        logger.info(f"👂 Listening to Redis stream: {settings.REDIS_STREAM_KEY}")
 
         while True:
             try:
@@ -121,11 +130,11 @@ class RedisWorker:
                 )
 
                 if not messages:
-                    print("⏳ No new messages. Waiting...")
+                    logger.info("⏳ No new messages. Waiting...")
                     time.sleep(1)
                     continue
 
-                print(f"📦 Received {len(messages[0][1])} message(s)")
+                logger.info(f"📦 Received {len(messages[0][1])} message(s)")
                 
                 # Process each message in batch
                 for stream_id, message in messages[0][1]:
@@ -136,23 +145,25 @@ class RedisWorker:
                     last_id = stream_id   # Track progress
 
             except redis.ConnectionError as e:
-                print(f"🔌 Redis connection error: {str(e)}. Reconnecting in 5s...")
+                logger.error(f"🔌 Redis connection error: {str(e)}. Reconnecting in 5s...")
                 time.sleep(5)
                 self.connect_redis()
             except Exception as e:
-                print(f"💥 Critical error in stream processing: {str(e)}")
+                logger.exception(f"💥 Critical error in stream processing: {str(e)}")
                 time.sleep(5)   # Backoff before retry
 
     def __del__(self):
         """Cleanup event loop on shutdown"""
+        if self.redis:
+            self.redis.close()
         self.loop.close()
 
 if __name__ == "__main__":
-    print("🚀 Starting ML worker service...")
+    logger.info("🚀 Starting ML worker service...")
     worker = RedisWorker()
     try:
         worker.run()
     except KeyboardInterrupt:
-        print("\n🛑 Gracefully shutting down worker...")
+        logger.warning("\n🛑 Gracefully shutting down worker...")
     except Exception as e:
-        print(f"💣 Fatal error: {str(e)}")
+        logger.exception(f"💣 Fatal error: {str(e)}")
