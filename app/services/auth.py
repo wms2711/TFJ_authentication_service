@@ -147,15 +147,15 @@ class AuthService:
         try:
             stmt = select(User).where(User.email == email)
             result = await self.db.execute(stmt)
-            email = result.scalar_one_or_none()
+            email_result = result.scalar_one_or_none()
 
-            if not email:
-                logger.warning(f"User not found with email: {email}")
+            if not email_result:
+                logger.warning(f"User not found in database with email: {email}")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"User with email '{email}' not found"
+                    detail=f"User not found"
                 )
-            return email
+            return email_result
         except HTTPException:
             raise
         except Exception as e:
