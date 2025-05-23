@@ -61,6 +61,7 @@ class UserService:
                 select(User).where(User.username == user.username)
             )
             if username_result.scalar_one_or_none():
+                logger.error(f"Username already registered")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Username already registered"
@@ -71,6 +72,7 @@ class UserService:
                 select(User).where(User.email == user.email)
             )
             if email_result.scalar_one_or_none():
+                logger.error(f"Email already registered")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Email already registered"
@@ -135,6 +137,7 @@ class UserService:
             )
             user = result.scalars().first()
             if not user:
+                logger.error(f"User not found")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
@@ -147,10 +150,26 @@ class UserService:
             if "email" in data_to_update and data_to_update["email"] != user.email:
                 existing_user = await AuthService(self.db).get_user_by_email_or_none(data_to_update["email"])
                 if existing_user:
+                    logger.error(f"Email already in use, choose another email")
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Email already in use"
+                        detail="Email already in use, choose another email"
                     )
+                
+            # Validate username is unique
+            exiting_username = await self.db.execute(
+                select(User).where(
+                    User.username == data_to_update["username"],
+                    User.id != user_id
+                )
+            )
+            existing_user_with_username = exiting_username.scalars().first()
+            if existing_user_with_username:
+                logger.error(f"Username already in username, choose another username")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Username already in username, choose another username"
+                )
             
             # Update user information
             for field, value in data_to_update.items():
@@ -198,6 +217,7 @@ class UserService:
             result = await self.db.execute(select(User).where(User.id == user_id))
             user = result.scalars().first()
             if not user:
+                logger.error(f"User not found")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
@@ -256,6 +276,7 @@ class UserService:
             )
             user = result.scalars().first()
             if not user:
+                logger.error(f"User not found")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
@@ -298,16 +319,26 @@ class UserService:
             ValueError: On unexpected internal errors or DB commit failures.
         """
         try:
+            # Find user and check if is already verified
             result = await self.db.execute(
-                update(User)
-                .where(User.email == email)
-                .values(email_verified=True)
+                select(User).where(User.email == email)
             )
-            if result.rowcount == 0:
+            user = result.scalars().first()
+            if not user:
+                logger.error(f"No user found with email")
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="No user found with email"
                 )
+            if user.email_verified:
+                logger.error(f"User already verified")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="User already verified"
+                )
+
+            # Proceed to update
+            user.email_verified = True
             try:
                 await self.db.commit()
             except Exception as db_exc:

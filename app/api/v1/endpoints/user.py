@@ -16,7 +16,7 @@ from app.schemas.user import UserInDB, UserCreate, UserUpdate, UserVerificationR
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.services.email import EmailService
-from app.dependencies import get_current_user
+from app.dependencies import get_user
 
 # Initialize router with prefix and tags for OpenAPI documentation
 router = APIRouter(prefix="/users", tags=["users"])
@@ -28,6 +28,7 @@ async def create_user(
     # db: Session = Depends(get_db),
     db: AsyncSession = Depends(async_get_db),
 ):
+    # TODO: request payload has additional unknown field
     """
     Register a new user.
     
@@ -68,7 +69,7 @@ async def create_user(
     return created_user
 
 @router.get("/me", response_model=UserInDB)
-async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
+async def read_users_me(current_user: UserInDB = Depends(get_user)):
     """
     Get current authenticated user's profile.
     
@@ -88,9 +89,10 @@ async def read_users_me(current_user: UserInDB = Depends(get_current_user)):
 @router.patch("/me", response_model=UserInDB)
 async def update_user_me(
     user_update: UserUpdate,
-    current_user: UserInDB = Depends(get_current_user),
+    current_user: UserInDB = Depends(get_user),
     db: AsyncSession = Depends(async_get_db),
 ):
+    # TODO: do not check inactive users
     """
     Update current authenticated user's profile.
     
@@ -126,7 +128,7 @@ async def update_user_me(
     
 @router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_me(
-    current_user: UserInDB = Depends(get_current_user),
+    current_user: UserInDB = Depends(get_user),
     db: AsyncSession = Depends(async_get_db),
     auth_service: AuthService = Depends()
 ):
@@ -172,7 +174,7 @@ async def verify_email(
     request: UserVerificationRequest,
     db: AsyncSession = Depends(async_get_db)
 ):
-        """
+    """
     Verify user's email using the verification token.
     
     Flow:
@@ -189,15 +191,15 @@ async def verify_email(
     Raises:
         HTTPException: 400 if token is invalid
     """
-        auth_service = AuthService(db)
-        email = auth_service.verify_email_token(request.token)
-        if not email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired verification token"
-            )
-        
-        user_service = UserService(db)
-        await user_service.mark_email_as_verified(email)
+    auth_service = AuthService(db)
+    email = auth_service.verify_email_token(request.token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token"
+        )
+    
+    user_service = UserService(db)
+    await user_service.mark_email_as_verified(email)
 
-        return {"message": "Email successfully verified"}
+    return {"message": "Email successfully verified"}
