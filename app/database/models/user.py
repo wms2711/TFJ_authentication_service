@@ -22,6 +22,8 @@ class User(Base):
         is_active: Account status flag
         full_name: Optional display name
         email_verified: Email verification status
+        is_employer: Flag for employer accounts
+        is_admin: Flag for admin accounts
     """
 
     # Database table name
@@ -36,6 +38,10 @@ class User(Base):
 
     # Verify
     email_verified = Column(Boolean, default=False)
+
+    # Employer
+    is_employer = Column(Boolean, default=False, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)
 
     # Relationship to profile (one-to-one)
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
@@ -52,4 +58,4 @@ class User(Base):
         Returns:
             str: Descriptive representation
         """
-        return f"<User(id={self.id}, name={self.full_name})>"
+        return f"<User(id={self.id}, username={self.username}, roles=[employer:{self.is_employer}, admin:{self.is_admin}]>"

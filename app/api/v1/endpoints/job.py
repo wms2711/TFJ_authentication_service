@@ -23,7 +23,7 @@ async def create_job(
     current_user: User = Depends(get_current_user)
     ):
 
-    # Verify user has permission to post jobs (only employer)
+    # Verify user has permission to post jobs (only employer or admin)
     if not current_user.is_employer and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
