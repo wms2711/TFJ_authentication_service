@@ -144,7 +144,15 @@ Payload below as reference:
   "address": "123 singapore",
   "city": "Singapore",
   "country": "Singapore",
-  "postal_code": "123456"
+  "postal_code": "123456",
+  "summary": "test",
+  "education": [
+    {
+        "institution": "ABC Primary School",
+        "degree": "Primary Certificate",
+        "start_year": 2005
+    }
+    ]
 }
 ```
 Example of the response:
@@ -157,14 +165,20 @@ Example of the response:
     "city": "Singapore",
     "country": "Singapore",
     "postal_code": "123456",
-    "id": 1,
-    "user_id": 1,
+    "id": 12,
+    "user_id": 7,
     "headline": null,
-    "summary": null,
+    "summary": "test",
     "current_position": null,
     "current_company": null,
     "years_of_experience": null,
-    "education": null,
+    "education": [
+        {
+            "degree": "Primary Certificate",
+            "institution": "ABC Primary School",
+            "start_year": 2005
+        }
+    ],
     "experience": null,
     "skills": null,
     "resume_url": null,
@@ -175,8 +189,8 @@ Example of the response:
     "job_type_preferences": null,
     "is_profile_public": true,
     "is_resume_public": true,
-    "created_at": "2025-05-07T08:17:41.167078+07:00",
-    "updated_at": "2025-05-07T08:17:41.167078+07:00"
+    "created_at": "2025-05-22T20:31:03.610705Z",
+    "updated_at": "2025-05-22T20:31:03.610705Z"
 }
 ```
 

@@ -18,7 +18,6 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 
-
 class EducationItem(BaseModel):
     """
     Represents a user's educational background.
@@ -106,6 +105,8 @@ class UserProfileBase(BaseModel):
     country: Optional[str] = None
     postal_code: Optional[str] = None
 
+    # class Config:
+    #     extra = "forbid"  # Disallow unknown fields
 
 class UserProfileCreate(UserProfileBase):
     """
@@ -114,6 +115,21 @@ class UserProfileCreate(UserProfileBase):
     Extends:
         UserProfileBase
     """
+    headline: Optional[str] = None
+    summary: Optional[str] = None
+    current_position: Optional[str] = None
+    current_company: Optional[str] = None
+    years_of_experience: Optional[int] = None
+    education: Optional[List[EducationItem]] = None
+    experience: Optional[List[ExperienceItem]] = None
+    skills: Optional[List[SkillItem]] = None
+    preferred_job_titles: Optional[List[str]] = None
+    preferred_locations: Optional[List[str]] = None
+    preferred_salary: Optional[str] = None
+    job_type_preferences: Optional[List[str]] = None
+    is_profile_public: Optional[bool] = None
+    is_resume_public: Optional[bool] = None
+
     pass
 
 
