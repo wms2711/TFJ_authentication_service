@@ -37,6 +37,9 @@ class ApplicationCreate(ApplicationBase):
         ApplicationBase
     """
     pass
+    class Config:
+        extra = "forbid"  # Disallow unknown fields
+
 
 class ApplicationOut(ApplicationBase):
     """
