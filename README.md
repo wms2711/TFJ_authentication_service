@@ -55,7 +55,7 @@ python3 worker.py
 - Added job service
 ###### V1.4.1
 - Create jobs - only employers and admins can create jobs
-###### V1.1.2
+###### V1.4.2
 - Update jobs - only employers and admins can update jobs
 
 # Add valid header for Authorization example
