@@ -51,6 +51,11 @@ python3 worker.py
 ### V1.3.0
 - Added redis service
 
+### V1.4.0
+- Added job service
+###### V1.1.1
+- Only employers and admins can create jobs
+
 # Add valid header for Authorization example
 | Key           | Value |
 |---------------|-------|
@@ -423,6 +428,18 @@ Payload below as reference:
 }
 ```
 
+# Employers and admins post jobs (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/job/
+```
+Payload below as reference:
+```bash
+{
+  "title": "Software Engineer"
+}
+```
+
 # Project Structure
 ```authentication_service/
 ├── uploads/
@@ -440,16 +457,19 @@ Payload below as reference:
 │   │   └── models/
 │   │       ├── enums/
 │   │       │    ├── __init__.py
-│   │       │    └── application.py   # Models enums for application
+│   │       │    ├── application.py   # Models enums for application
+│   │       │    └── job.py           # Job enums for job model
 │   │       ├── user.py               # Database: User model
 │   │       ├── profile.py            # Database: User profile model
-│   │       └── application.py        # Database: Job application model
+│   │       ├── application.py        # Database: Job application model
+│   │       └── job.py                # Database: Jobs model
 │   ├── schemas/                      # Pydantic models
 │   │   ├── __init__.py
 │   │   ├── user.py                   # User Data Schemas
 │   │   ├── token.py                  # Authentication Token Schemas
 │   │   ├── profile.py                # User Profile Data Schemas
-│   │   └── application.py            # Job Application Data Schemas
+│   │   ├── application.py            # Job Application Data Schemas
+│   │   └── job.py                    # Jobs Data Schemas
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── auth.py                   # Auth service
@@ -458,17 +478,19 @@ Payload below as reference:
 │   │   ├── redis.py                  # Redis Pub/Sub + streams service
 │   │   ├── application.py            # Jon application service
 │   │   ├── ml_client.py              # Mock ML service
-│   │   └── email.py                  # Email service
+│   │   ├── email.py                  # Email service
+│   │   └── job.py                    # Job service
 │   └── api/
 │       ├── __init__.py
-│       ├── v1/
+│       └── v1/
 │           ├── __init__.py
 │           └── endpoints/
 │               ├── __init__.py
 │               ├── auth.py           # Auth router
 │               ├── profile.py        # Profile router
 │               ├── user.py           # User router
-│               └── applications.py   # Job Application router
+│               ├── applications.py   # Job Application router
+│               └── job.py            # Jobs router
 ├── requirements.txt
 ├── .env                              # Environment variables
 ├── run.py                            # Application entry point for dev
