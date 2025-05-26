@@ -57,6 +57,8 @@ python3 worker.py
 - Create jobs - only employers and admins can create jobs
 ###### V1.4.2
 - Update jobs - only employers and admins can update jobs
+###### V1.4.3
+- Fetch single job detail - if job is expired or not active, only admin or job creator can fetch the job
 
 # Add valid header for Authorization example
 | Key           | Value |
@@ -453,6 +455,36 @@ Payload below as reference:
   "title": "Software Engineer",
   "description": "Software Engineer for ...",
   "company_name": "company"
+}
+```
+
+# Fetch single job (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/job/b108cf6d-eb01-45cc-9dbc-e61e92efcd23
+```
+Example of the response:
+```bash
+{
+    "title": "Software Engineer",
+    "description": "Software Engineer for ...",
+    "company_name": "company",
+    "contact_email": null,
+    "location": null,
+    "category": null,
+    "remote_available": false,
+    "salary_min": null,
+    "salary_max": null,
+    "currency": "SGD",
+    "job_type": null,
+    "experience_level": null,
+    "skills_required": [],
+    "language": [],
+    "apply_url": null,
+    "id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23",
+    "is_active": true,
+    "posted_at": "2025-05-26T01:34:24.626434",
+    "expires_at": "2025-06-25T01:36:10.455000"
 }
 ```
 
