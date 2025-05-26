@@ -14,7 +14,7 @@ Includes:
 """
 
 import uuid
-from sqlalchemy import Column, String, Boolean, Integer, DateTime, Index, ARRAY, Text, Enum
+from sqlalchemy import Column, String, Boolean, Integer, DateTime, Index, ARRAY, Text, Enum, Computed
 from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
 from sqlalchemy.sql import func
 from datetime import datetime, timedelta
@@ -51,6 +51,7 @@ class Job(Base):
     
     # Primary and basic details
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    creator_id = Column(Integer, nullable=False, index=True)
     title = Column(String(100), nullable=False)
     description = Column(Text)
     company_name = Column(String(100))
@@ -72,18 +73,18 @@ class Job(Base):
     skills_required = Column(ARRAY(String))
     language = Column(ARRAY(String))
     is_active = Column(Boolean, default=True)
-    apply_url = Column(String(300))  # For external job application links
+    apply_url = Column(String(300))
 
     # Time metadata
     posted_at = Column(DateTime, server_default=func.now())
     expires_at = Column(DateTime, server_default=func.now() + timedelta(days=30))
     
-    # For full-text search
+    # Corrected full-text search implementation
     search_vector = Column(
-        TSVECTOR(), 
-        computed="to_tsvector('english', title || ' ' || description)", 
-        persisted=True
-        )
+        TSVECTOR(),
+        Computed("to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,''))"),
+        # Remove the persisted=True parameter
+    )
 
     # Indexes for query performance
     __table_args__ = (
@@ -96,6 +97,9 @@ class Job(Base):
               
         # Index for salary ranges
         Index('idx_salary_range', 'salary_min', 'salary_max'),
+        
+        # GIN index for search vector
+        Index('idx_search_vector', 'search_vector', postgresql_using='gin')
     )
 
     def __repr__(self):

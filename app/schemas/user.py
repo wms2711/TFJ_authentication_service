@@ -53,6 +53,8 @@ class UserInDB(UserBase):
     """
     id: int
     is_active: bool
+    is_employer: bool
+    is_admin: bool
 
     class Config:
         from_attributes = True

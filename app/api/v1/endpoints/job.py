@@ -27,7 +27,7 @@ async def create_job(
     if not current_user.is_employer and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only employers can post jobs"
+            detail="Only employers or admins can post jobs"
         )
     job_service = JobService(db)
-    return await job_service.create_job(job_data)
+    return await job_service.create_job(job_data, creator_id=current_user.id)
