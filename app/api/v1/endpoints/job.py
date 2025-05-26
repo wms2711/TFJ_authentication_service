@@ -21,8 +21,7 @@ async def create_job(
     job_data: JobCreate,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
-    ):
-
+):
     # Verify user has permission to post jobs (only employer or admin)
     if not current_user.is_employer and not current_user.is_admin:
         raise HTTPException(
@@ -38,8 +37,7 @@ async def update_job(
     job_data: JobUpdate,
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
-    ):
-
+):
     # Verify user has permission to update jobs (only employer or admin)
     if not current_user.is_employer and not current_user.is_admin:
         raise HTTPException(
@@ -51,4 +49,16 @@ async def update_job(
         job_id=job_id,
         update_data=job_data,
         updater_id=current_user.id
+    )
+
+@router.get("/{job_id}", response_model=JobInDB)
+async def get_specific_job(
+    job_id: UUID,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    job_service = JobService(db)
+    return await job_service.get_specific_job(
+        job_id=job_id,
+        current_user=current_user
     )

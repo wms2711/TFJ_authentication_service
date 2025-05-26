@@ -17,6 +17,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 import logging
 from uuid import UUID
+from app.database.models.user import User
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -155,4 +156,61 @@ class JobService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to update job"
+            )
+        
+    async def get_specific_job(
+        self,
+        job_id: UUID,
+        current_user: User
+    ) -> JobInDB:
+        """
+        Retrieve a specific job with expiration and permission checks.
+        
+        Args:
+            job_id: UUID of the job to retrieve
+            current_user: Authenticated user making the request
+            
+        Returns:
+            JobInDB: The requested job details
+            
+        Raises:
+            HTTPException: 404 if job not found
+            HTTPException: 403 if user cannot view expired/inactive job
+        """
+        try:
+            # Get job from database
+            result = await self.db.execute(
+                select(Job).where(Job.id == job_id)
+            )
+            job = result.scalars().first()
+            if not job:
+                logger.error(f"Job not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Job not found"
+                )
+            
+            # See of job is expired (only admin and job creator can get job post if expired)
+            current_time = datetime.utcnow()
+            is_expired = job.expires_at < current_time
+            is_creator = job.creator_id == current_user.id
+
+            if is_expired and not (current_user.is_admin or is_creator):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Expired jobs can only be viewed by admins or the job creator"
+                )
+            if not job.is_active and not (current_user.is_admin or is_creator):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Inactive jobs can only be viewed by admins or the job creator"
+                )
+            return JobInDB.model_validate(job)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching job {job_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve job"
             )
