@@ -151,7 +151,7 @@ class JobService:
             raise
         except Exception as e:
             await self.db.rollback()
-            logger.exception(f"Unexpected error during user update for user_id={user_id}: {e}")
+            logger.exception(f"Unexpected error during user job for job id={job_id}: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to update job"

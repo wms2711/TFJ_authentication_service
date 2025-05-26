@@ -53,8 +53,10 @@ python3 worker.py
 
 ### V1.4.0
 - Added job service
-###### V1.1.1
-- Only employers and admins can create jobs
+###### V1.4.1
+- Create jobs - only employers and admins can create jobs
+###### V1.1.2
+- Update jobs - only employers and admins can update jobs
 
 # Add valid header for Authorization example
 | Key           | Value |
@@ -437,6 +439,20 @@ Payload below as reference:
 ```bash
 {
   "title": "Software Engineer"
+}
+```
+
+# Employers and admins update jobs (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PATCH` request to:
+```bash
+http://127.0.0.1:9000/job/b108cf6d-eb01-45cc-9dbc-e61e92efcd23
+```
+Payload below as reference:
+```bash
+{
+  "title": "Software Engineer",
+  "description": "Software Engineer for ...",
+  "company_name": "company"
 }
 ```
 
