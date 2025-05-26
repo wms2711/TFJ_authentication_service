@@ -11,12 +11,12 @@ Handles business logic for job posting operations:
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.job import Job
-from app.schemas.job import JobCreate, JobInDB
+from app.schemas.job import JobCreate, JobInDB, JobUpdate
 from fastapi import HTTPException, status
 from typing import Optional
 from datetime import datetime, timedelta
 import logging
-import uuid
+from uuid import UUID
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -35,10 +35,10 @@ class JobService:
         self.db = db
 
     async def create_job(
-            self, 
-            job_data: JobCreate, 
-            creator_id: int
-        ) -> JobInDB:
+        self, 
+        job_data: JobCreate, 
+        creator_id: int
+    ) -> JobInDB:
         """
         Create a new job posting.
         
@@ -95,4 +95,64 @@ class JobService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to create job: {str(e)}"
+            )
+        
+    async def update_job(
+        self,
+        job_id: UUID,
+        update_data: JobUpdate,
+        updater_id: int
+        ) -> JobInDB:
+        """
+        Update an existing job posting.
+        
+        Args:
+            job_id: UUID of the job to update
+            update_data: Validated job update data
+            updater_id: ID of the user making the update
+            
+        Returns:
+            JobInDB: Updated job details
+            
+        Raises:
+            HTTPException: Appropriate status codes for different failure scenarios
+        """
+        try:
+            # Get the existing job
+            result = await self.db.execute(
+                select(Job).where(Job.id == job_id)
+            )
+            job = result.scalars().first()
+            if not job:
+                logger.error(f"Job not found")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Job not found"
+                )
+            
+            # Extract only provided fields to update
+            data_to_update = update_data.dict(exclude_unset=True)
+
+            # Update job information
+            for field, value in data_to_update.items():
+                setattr(job, field, value)
+            job.creator_id = updater_id
+
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed for job id={job_id}: {db_exc}")
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+            await self.db.refresh(job)
+            return JobInDB.model_validate(job)
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error during user update for user_id={user_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update job"
             )

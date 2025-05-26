@@ -101,6 +101,13 @@ class JobUpdate(BaseModel):
     language: Optional[List[str]] = None
     apply_url: Optional[str] = None
     is_active: Optional[bool] = None
+    
+    class Config:
+        extra = "forbid"  # Prevent unknown fields
+        json_encoders = {
+            JobType: lambda v: v.value if v else None,
+            ExperienceLevel: lambda v: v.value if v else None
+        }
 
 class JobInDB(JobBase):
     """
