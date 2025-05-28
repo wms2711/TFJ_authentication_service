@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 from app.database.models.enums.application import ApplicationStatus, MLTaskStatus
+from uuid import UUID
 
 class ApplicationBase(BaseModel):
     """
@@ -22,9 +23,9 @@ class ApplicationBase(BaseModel):
     - Output serialization
 
     Fields:
-        job_id (str): External job identifier
+        job_id (UUID): External job identifier
     """
-    job_id: str
+    job_id: UUID
     
 class ApplicationCreate(ApplicationBase):
     """

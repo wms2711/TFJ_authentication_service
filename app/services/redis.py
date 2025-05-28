@@ -15,6 +15,7 @@ import json
 from app.config import settings
 from utils.logger import init_logger
 from typing import Optional
+from uuid import UUID
 
 # Configure logger
 logger = init_logger("RedisService")
@@ -45,7 +46,7 @@ class RedisService:
             self, 
             application_id: int, 
             user_id: int, 
-            job_id: str
+            job_id: UUID
         ):
         """
         Publish application event to Redis Pub/Sub and Stream.
@@ -57,7 +58,7 @@ class RedisService:
         Args:
             application_id (int): ID of the submitted job application
             user_id (int): ID of the user
-            job_id (str): ID of the job
+            job_id (UUID): ID of the job
         
         Structure:
             {
@@ -68,10 +69,12 @@ class RedisService:
             }
         """
         try:
+            # Convert UUID to str for job_id
+            job_id_str = str(job_id)
             message = {
                 "application_id": application_id,
                 "user_id": user_id,
-                "job_id": job_id,
+                "job_id": job_id_str,
                 "status": "pending"
             }
 

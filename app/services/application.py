@@ -16,6 +16,7 @@ from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException, status
 from typing import Optional, Unpack
 from datetime import datetime
+from uuid import UUID, uuid4
 from utils.logger import init_logger
 
 # Configure logger
@@ -38,7 +39,7 @@ class ApplicationService:
     async def create_application(
             self, 
             user_id: int, 
-            job_id: str
+            job_id: UUID
         ) -> ApplicationOut:
         """
         Submit a new job application.

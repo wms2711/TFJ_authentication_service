@@ -8,6 +8,7 @@ tracks user applications and their associated ML processing states.
 """
 
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum
+from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 from app.database.base import Base
 from app.database.models.enums.application import ApplicationStatus, MLTaskStatus  # <-- Import enums
@@ -31,7 +32,7 @@ class Application(Base):
     
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
-    job_id = Column(String, index=True, nullable=False)  # External job ID
+    job_id = Column(UUID(as_uuid=True), index=True, nullable=False)  # External job ID
     
     # Using Enums instead of raw strings
     status = Column(Enum(ApplicationStatus), 
