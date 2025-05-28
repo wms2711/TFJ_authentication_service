@@ -54,9 +54,9 @@ python3 worker.py
 ### V1.4.0
 - Added job service
 ###### V1.4.1
-- Create jobs - only employers and admins can create jobs
+- Create jobs - only employers or admins can create jobs
 ###### V1.4.2
-- Update jobs - only employers and admins can update jobs
+- Update jobs - only (employers | admins) & job creator can update jobs
 ###### V1.4.3
 - Fetch single job detail - if job is expired or not active, only admin or job creator can fetch the job
 ###### V1.4.4
