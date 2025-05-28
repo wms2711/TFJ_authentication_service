@@ -16,10 +16,9 @@ import asyncio
 from app.config import settings
 from app.database.session import SessionLocal
 from app.services.ml_client import MLClient
-import logging
+from utils.logger import init_logger
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger = init_logger("MLWorkerService")
 
 class RedisWorker:
     def __init__(self):

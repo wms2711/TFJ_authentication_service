@@ -21,11 +21,10 @@ from app.services.user import UserService
 from app.services.email import EmailService
 from app.database.models.user import User
 from app.config import settings
-import logging
+from utils.logger import init_logger
 
 # Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logger = init_logger("AuthRouter")
 
 # Initialize router with prefix and tags for OpenAPI docs
 router = APIRouter(prefix="/auth", tags=["auth"])
