@@ -53,7 +53,6 @@ class User(Base):
     def __repr__(self):
         """
         Official string representation of User instance.
-        Used for debugging and logging.
         
         Returns:
             str: Descriptive representation

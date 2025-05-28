@@ -15,11 +15,10 @@ from app.database.models.user import User
 from app.database.models.profile import UserProfile
 from app.schemas.user import UserCreate, UserInDB, UserUpdate, UserPasswordUpdate
 from app.services.auth import AuthService
-import logging
+from utils.logger import init_logger
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("UserService")
 
 class UserService:
     """Main user service handling account management."""
