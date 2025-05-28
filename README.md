@@ -350,7 +350,7 @@ http://127.0.0.1:9000/application/
 Payload below as reference:
 ```bash
 {
-  "job_id": "abc123"
+  "job_id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23"
 }
 ```
 
