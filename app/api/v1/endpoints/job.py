@@ -1,3 +1,14 @@
+"""
+Job Router
+==========
+
+Handles all job-related operations including:
+- Creating jobs (restricted to employers/admins)
+- Updating jobs (restricted to employers/admins and job creator)
+- Viewing specific job postings
+- Searching for jobs (with filters, pagination, and Redis caching)
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, Query,status
 from typing import List, Optional
 from uuid import UUID
@@ -23,7 +34,24 @@ async def create_job(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # Verify user has permission to post jobs (only employer or admin)
+    """
+    Create a new job posting.
+
+    Access:
+    - Only accessible by employers or admins.
+
+    Args:
+        job_data (JobCreate): Data required to create a new job.
+        db (AsyncSession): Database session.
+        current_user (User): Authenticated user.
+
+    Returns:
+        JobInDB: Created job record.
+
+    Raises:
+        HTTPException: 403 if user is not authorized.
+    """
+    # Verify user has permission to create jobs (only employer or admin)
     if not current_user.is_employer and not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -39,6 +67,24 @@ async def update_job(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Update an existing job posting.
+
+    Access:
+    - Only accessible by employers or admins.
+
+    Args:
+        job_id (UUID): Job identifier.
+        job_data (JobUpdate): Fields to update.
+        db (AsyncSession): Database session.
+        current_user (User): Authenticated user.
+
+    Returns:
+        JobInDB: Updated job record.
+
+    Raises:
+        HTTPException: 403 if unauthorized.
+    """
     # Verify user has permission to update jobs (only employer or admin)
     if not current_user.is_employer and not current_user.is_admin:
         raise HTTPException(
@@ -58,6 +104,20 @@ async def get_specific_job(
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):
+    """
+    Get a specific job by ID.
+
+    Args:
+        job_id (UUID): Job identifier.
+        db (AsyncSession): Database session.
+        current_user (User): Authenticated user.
+
+    Returns:
+        JobInDB: Job details.
+
+    Raises:
+        HTTPException: 404 if job not found.
+    """
     job_service = JobService(db=db, redis_service=None)
     return await job_service.get_specific_job(
         job_id=job_id,
@@ -80,12 +140,43 @@ async def search_jobs(
     redis: RedisService = Depends(RedisService)
 ):
     """
-    Search jobs with caching and pagination
-    
+    Search job listings using filters, pagination, and caching.
+
+    Access:
+    - Regular users see only active jobs.
+    - Admins and creators see all jobs.
+
+    Filters:
+    - Location
+    - Remote (bool)
+    - Title (fuzzy search)
+    - Minimum salary
+    - Job type (Full-time, Part-time, etc.)
+    - Experience level
+    - Skills (list)
+
+    Pagination:
+    - Default: page=1, page_size=20
+
+    Caching:
+    - Redis used to cache repeated queries for performance.
+
+    Args:
+        location (str): Job location.
+        remote (bool): Remote jobs only.
+        title (str): Job title.
+        salary_min (int): Minimum salary.
+        job_type (JobType): Enum of job types.
+        experience (ExperienceLevel): Enum of experience levels.
+        skills (List[str]): Required skills.
+        page (int): Page number.
+        page_size (int): Results per page.
+        db (AsyncSession): Database session.
+        current_user (User): Authenticated user.
+        redis (RedisService): Redis service instance.
+
     Returns:
-        - Active, non-expired jobs for regular users
-        - All jobs for admins/creators
-        - Cached results when available
+        JobSearchResult: List of matched jobs and pagination metadata.
     """
     job_service = JobService(db=db, redis_service=redis)
     return await job_service.search_jobs(

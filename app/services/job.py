@@ -139,6 +139,13 @@ class JobService:
                     detail="Job not found"
                 )
             
+            if job.creator_id != updater_id:
+                logger.error(f"Only job creator can edit this job")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Only job creator can edit this job"
+                )
+            
             # Extract only provided fields to update
             data_to_update = update_data.dict(exclude_unset=True)
 
@@ -237,14 +244,26 @@ class JobService:
         current_user: Optional[User] = None
     ) -> JobSearchResult:
         """
-        Search jobs with Redis caching and permission filtering
-        
-        Flow:
-        1. Generate cache key from all parameters
-        2. Check Redis cache
-        3. If cache miss, query database
-        4. Filter results based on user permissions
-        5. Cache the results
+        Search for jobs with caching and filtering support.
+
+        Args:
+            location (str, optional): Filter by job location (partial match)
+            remote (bool, optional): Filter by remote availability
+            title (str, optional): Filter by job title (partial match)
+            salary_min (int, optional): Minimum acceptable salary
+            job_type (JobType, optional): Job type enum (FULL_TIME, PART_TIME, etc.)
+            experience (ExperienceLevel, optional): Experience level enum (JUNIOR, MID, etc.)
+            skills (List[str], optional): List of required skills (must all be present)
+            page (int): Page number (default: 1)
+            page_size (int): Results per page (default: 20)
+            current_user (User, optional): Authenticated user object
+
+        Returns:
+            JobSearchResult: A paginated and optionally cached list of matching jobs, 
+            along with metadata including total results and total pages.
+
+        Raises:
+            HTTPException: 500 Internal Server Error if search or database access fails
         """
         try:
             # Generate cache key
@@ -343,7 +362,23 @@ class JobService:
             )
 
     def _generate_cache_key(self, prefix: str, **kwargs) -> str:
-        """Generate consistent cache key from parameters"""
+        """
+        Generate a unique Redis cache key based on input parameters.
+
+        Used in:
+        - Caching job search queries
+
+        Example:
+        >>> _generate_cache_key("jobs:search", location="NY", title="Engineer", page=1)
+        'jobs:search:location=NY|page=1|title=Engineer'
+
+        Args:
+            prefix (str): Cache namespace prefix (e.g., "jobs:search")
+            **kwargs: Arbitrary filter parameters
+
+        Returns:
+            str: A cache key suitable for Redis
+        """
         params = []
         for k, v in sorted(kwargs.items()):
             if v is not None:
