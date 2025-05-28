@@ -13,12 +13,11 @@ Used by:
 import redis
 import json
 from app.config import settings
-import logging
+from utils.logger import init_logger
 from typing import Optional
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("RedisService")
 
 class RedisService:
     """Main redis service handling job application messaging."""
