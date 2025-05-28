@@ -16,11 +16,10 @@ from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException, status
 from typing import Optional, Unpack
 from datetime import datetime
-import logging
+from utils.logger import init_logger
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("ApplicationService")
 
 class ApplicationService:
     """Main application service handling job applications."""
