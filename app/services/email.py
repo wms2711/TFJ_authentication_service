@@ -14,12 +14,11 @@ import asyncio
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 from app.config import settings
-import logging
+from utils.logger import init_logger
 from fastapi import HTTPException, status
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("EmailService")
 
 class EmailService:
     """Service for handling emails."""
