@@ -55,6 +55,7 @@ class UserInDB(UserBase):
     is_active: bool
     is_employer: bool
     is_admin: bool
+    email_verified: bool
 
     class Config:
         from_attributes = True
@@ -108,3 +109,22 @@ class UserVerificationRequest(BaseModel):
         token (str): The new sign-ups verification token sent to the user's email.
     """
     token: str
+
+class UserUpdateAdmin(BaseModel):
+    """
+    Admin-only user update fields
+    
+    Used in:
+    - PATCH /admin/users/{user_id}
+    
+    Attributes:
+        is_active (bool): Activate/deactivate account.
+        is_admin (bool): Grant/revoke admin privileges.
+        is_employer (bool): Change employer status.
+    """
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+    is_employer: Optional[bool] = None
+    
+    class Config:
+        extra = "forbid" 
