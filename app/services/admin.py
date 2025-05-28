@@ -11,14 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from typing import List
-import logging
 from app.database.models.user import User
 from app.schemas.user import UserInDB, UserUpdateAdmin
-import logging
+from utils.logger import init_logger
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("AdminService")
 
 class AdminService:
     """Service for admin-specific operations"""
@@ -105,7 +103,7 @@ class AdminService:
                 - 500 if update fails.
         """
         if not requesting_user.is_admin:
-            logger.error(f"Non-admin user {requesting_user.id} attempted to list all users")
+            logger.error(f"Non-admin user of user id: {requesting_user.id} attempted to list all users")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Admin privileges required"
