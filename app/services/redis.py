@@ -81,7 +81,7 @@ class RedisService:
             # Publish to both Pub/Sub and Streams
             self.client.publish(
                 self.pubsub_channel,
-                json.dumps({"application_id": application_id})
+                json.dumps(message)
             )
 
             # Add to durable stream for tracking and history (local storage)
