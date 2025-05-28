@@ -59,6 +59,8 @@ python3 worker.py
 - Update jobs - only employers and admins can update jobs
 ###### V1.4.3
 - Fetch single job detail - if job is expired or not active, only admin or job creator can fetch the job
+###### V1.4.4
+- Fetch all found filtered job detail - if job is expired or not active, only admin can fetch the job (upcoming update job creator can fetch also)
 
 # Add valid header for Authorization example
 | Key           | Value |
@@ -485,6 +487,95 @@ Example of the response:
     "is_active": true,
     "posted_at": "2025-05-26T01:34:24.626434",
     "expires_at": "2025-06-25T01:36:10.455000"
+}
+```
+
+# Fetch all job (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/job/
+```
+Params below as reference:
+```bash
+{
+  "remote": false,
+  "title": "Software Engineer"
+}
+```
+Example of the response:
+```bash
+{
+    "meta": {
+        "page": 1,
+        "page_size": 20,
+        "total": 3,
+        "total_pages": 1
+    },
+    "results": [
+        {
+            "title": "Software Engineer",
+            "description": null,
+            "company_name": null,
+            "contact_email": null,
+            "location": null,
+            "category": null,
+            "remote_available": false,
+            "salary_min": null,
+            "salary_max": null,
+            "currency": "SGD",
+            "job_type": null,
+            "experience_level": null,
+            "skills_required": [],
+            "language": [],
+            "apply_url": null,
+            "id": "e6741fad-d206-467d-9b81-00c28d46ab5f",
+            "is_active": true,
+            "posted_at": "2025-05-26T01:35:18.067504",
+            "expires_at": "2025-06-25T01:35:18.067512"
+        },
+        {
+            "title": "Software Engineer",
+            "description": null,
+            "company_name": null,
+            "contact_email": null,
+            "location": null,
+            "category": null,
+            "remote_available": false,
+            "salary_min": null,
+            "salary_max": null,
+            "currency": "SGD",
+            "job_type": null,
+            "experience_level": null,
+            "skills_required": [],
+            "language": [],
+            "apply_url": null,
+            "id": "9d6b766d-a503-4c6d-8e61-3fa8912d9fad",
+            "is_active": true,
+            "posted_at": "2025-05-26T01:36:10.455491",
+            "expires_at": "2025-06-25T01:35:18.067000"
+        },
+        {
+            "title": "Software Engineer",
+            "description": "Software Engineer for ...",
+            "company_name": "company",
+            "contact_email": null,
+            "location": null,
+            "category": null,
+            "remote_available": false,
+            "salary_min": null,
+            "salary_max": null,
+            "currency": "SGD",
+            "job_type": null,
+            "experience_level": null,
+            "skills_required": [],
+            "language": [],
+            "apply_url": null,
+            "id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23",
+            "is_active": true,
+            "posted_at": "2025-05-26T01:34:24.626434",
+            "expires_at": "2025-06-25T01:35:18.067000"
+        }
+    ]
 }
 ```
 
