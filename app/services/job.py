@@ -18,13 +18,12 @@ from app.services.redis import RedisService
 from fastapi import HTTPException, status
 from typing import Optional, List
 from datetime import datetime, timedelta
-import logging
+from utils.logger import init_logger
 from uuid import UUID
 from app.database.models.user import User
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("JobService")
 
 class JobService:
     """Service handling job posting operations."""
