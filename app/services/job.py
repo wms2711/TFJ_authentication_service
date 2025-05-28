@@ -8,12 +8,15 @@ Handles business logic for job posting operations:
 - Job retrieval
 """
 
-from sqlalchemy import select
+from sqlalchemy import select, and_
+from sqlalchemy.sql import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.job import Job
-from app.schemas.job import JobCreate, JobInDB, JobUpdate
+from app.schemas.job import JobCreate, JobInDB, JobUpdate, JobSearchResult
+from app.database.models.enums.job import JobType, ExperienceLevel
+from app.services.redis import RedisService
 from fastapi import HTTPException, status
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timedelta
 import logging
 from uuid import UUID
@@ -26,7 +29,11 @@ logging.basicConfig(level=logging.INFO)
 class JobService:
     """Service handling job posting operations."""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+            self, 
+            db: AsyncSession, 
+            redis_service: Optional[RedisService] = None
+        ):
         """
         Initialize service with database session.
         
@@ -34,6 +41,7 @@ class JobService:
             db (AsyncSession): SQLAlchemy async database session
         """
         self.db = db
+        self.redis = redis_service
 
     async def create_job(
         self, 
@@ -214,3 +222,134 @@ class JobService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to retrieve job"
             )
+    
+    async def search_jobs(
+        self,
+        location: Optional[str] = None,
+        remote: Optional[bool] = None,
+        title: Optional[str] = None,
+        salary_min: Optional[int] = None,
+        job_type: Optional[JobType] = None,
+        experience: Optional[ExperienceLevel] = None,
+        skills: Optional[List[str]] = None,
+        page: int = 1,
+        page_size: int = 20,
+        current_user: Optional[User] = None
+    ) -> JobSearchResult:
+        """
+        Search jobs with Redis caching and permission filtering
+        
+        Flow:
+        1. Generate cache key from all parameters
+        2. Check Redis cache
+        3. If cache miss, query database
+        4. Filter results based on user permissions
+        5. Cache the results
+        """
+        try:
+            # Generate cache key
+            cache_key = self._generate_cache_key(
+                "jobs:search",
+                location=location,
+                remote=remote,
+                title=title,
+                salary_min=salary_min,
+                job_type=job_type,
+                experience=experience,
+                skills=skills,
+                page=page,
+                page_size=page_size,
+                is_admin=getattr(current_user, "is_admin", False)
+            )
+
+            try:
+            # Try cache first
+                if cached := await self.redis.get_cache(cache_key):
+                    logger.debug(f"Cache hit for key: {cache_key}")
+                    return JobSearchResult.model_validate_json(cached)
+            except Exception as e:
+                logger.warning(f"Cache check failed, proceeding to DB: {str(e)}")
+            
+            # Database query
+            query = select(Job)
+            filters = []
+            
+            # Add filters (maintain order for query planning)
+            if location:
+                filters.append(Job.location.ilike(f"%{location}%"))
+            if remote is not None:
+                filters.append(Job.remote_available == remote)
+            if title:
+                filters.append(Job.title.ilike(f"%{title}%")) 
+            if salary_min:
+                filters.append(Job.salary_max >= salary_min)
+            if job_type:
+                filters.append(Job.job_type == job_type)
+            if experience:
+                filters.append(Job.experience_level == experience)
+            if skills:
+                filters.append(Job.skills_required.contains(skills))
+        
+            # Apply all filters at once
+            if filters:
+                query = query.where(and_(*filters))
+
+            # If user is not admin, shows only active and non-expired jobs
+            if not getattr(current_user, "is_admin", False):
+                print("HERE")
+                query = query.where(
+                    Job.is_active == True,
+                    Job.expires_at >= datetime.utcnow()
+                )
+
+            # Get total count 
+            total = await self.db.scalar(
+                query.with_only_columns(func.count(Job.id))
+            )
+
+            # Apply pagination
+            results = await self.db.scalars(
+                query.offset((page - 1) * page_size)
+                .limit(page_size)
+            )
+
+            # Prepare response
+            response = JobSearchResult(
+                results=[JobInDB.model_validate(job) for job in results],
+                meta={
+                    "page": page,
+                    "page_size": page_size,
+                    "total": total,
+                    "total_pages": (total + page_size - 1) // page_size
+                }
+            )
+
+            # Cache the results (async fire-and-forget)
+            try:
+                await self.redis.set_cache(
+                    cache_key, 
+                    response.model_dump_json(),
+                    ttl=300   # 5 mins
+                    )
+            except Exception as e:
+                logger.error(f"Cache set failed: {str(e)}")
+                # Don't fail the request if caching fails
+            return response
+        
+        except Exception as e:
+            logger.exception(f"Job search failed: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Job search failed"
+            )
+
+    def _generate_cache_key(self, prefix: str, **kwargs) -> str:
+        """Generate consistent cache key from parameters"""
+        params = []
+        for k, v in sorted(kwargs.items()):
+            if v is not None:
+                if isinstance(v, list):
+                    params.append(f"{k}={','.join(sorted(v))}")
+                else:
+                    params.append(f"{k}={v}")
+        return f"{prefix}:{'|'.join(params)}"

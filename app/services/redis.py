@@ -14,6 +14,7 @@ import redis
 import json
 from app.config import settings
 import logging
+from typing import Optional
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -103,3 +104,37 @@ class RedisService:
             return self.client.ping()
         except redis.RedisError:
             return False
+        
+    async def get_cache(self, key: str) -> Optional[dict]:
+        """Get cached JSON data from Redis."""
+        try:
+            data = self.client.get(key)
+            return json.loads(data) if data else None
+        except (redis.RedisError, json.JSONDecodeError) as e:
+            logger.error(f"Cache get failed for key {key}: {str(e)}")
+            return None
+        
+    async def set_cache(self, key: str, value: dict, ttl: int = 300) -> bool:
+        """Set JSON data in Redis cache with TTL."""
+        try:
+            return bool(
+                self.client.set(
+                    key,
+                    json.dumps(value),
+                    ex=ttl
+                )
+            )
+        except (redis.RedisError, TypeError) as e:
+            logger.error(f"Cache set failed for key {key}: {str(e)}")
+            return False
+
+    async def invalidate_cache(self, pattern: str) -> None:
+        """Delete cache keys matching pattern."""
+        try:
+            keys = self.client.keys(pattern + "*")
+            if keys:
+                self.client.delete(*keys)
+        except redis.RedisError as e:
+            logger.error(f"Cache invalidation failed for pattern {pattern}: {str(e)}")
+
+
