@@ -18,11 +18,10 @@ import os
 import uuid
 import aiofiles
 from datetime import datetime
-import logging
+from utils.logger import init_logger
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("ProfileService")
 
 class ProfileService:
     """Main profiling service for managing user profiles."""
