@@ -23,7 +23,7 @@ from app.database.models.user import User
 from app.config import settings
 from utils.logger import init_logger
 
-# Configure logging
+# Configure logger
 logger = init_logger("AuthRouter")
 
 # Initialize router with prefix and tags for OpenAPI docs

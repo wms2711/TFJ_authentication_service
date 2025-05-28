@@ -20,14 +20,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
-import logging
+from utils.logger import init_logger
 from app.schemas.user import UserInDB
 import uuid
 from typing import Optional
 
-# Configure logging
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+# Configure logger
+logger = init_logger("AuthService")
 
 # Password hashing configuration using bcrypt algorithm
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
