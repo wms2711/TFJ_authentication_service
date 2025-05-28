@@ -62,6 +62,13 @@ python3 worker.py
 ###### V1.4.4
 - Fetch all found filtered job detail - if job is expired or not active, only admin can fetch the job (upcoming update job creator can fetch also)
 
+### V1.5.0
+- Added admin service
+###### V1.5.1
+- Retrieving all users - only admins can do so
+###### V1.5.2
+- Updating user status (is_active, is_admin, is_employer) - only admins can modify, admin cannot modify itself or other admins
+
 # Add valid header for Authorization example
 | Key           | Value |
 |---------------|-------|
@@ -579,6 +586,51 @@ Example of the response:
 }
 ```
 
+# Admins retrive all users (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/admin/users
+```
+Results below as reference:
+```bash
+[
+    {
+        "username": "wms2711",
+        "email": "wangmingshen1@gmail.com",
+        "full_name": "Wang Ming Shen",
+        "id": 2,
+        "is_active": true,
+        "is_employer": true,
+        "is_admin": false,
+        "email_verified": false
+    },
+    {
+        "username": "wms27111",
+        "email": "mingshenliteon@gmail.com",
+        "full_name": "Wang Ming Shen",
+        "id": 1,
+        "is_active": true,
+        "is_employer": true,
+        "is_admin": true,
+        "email_verified": true
+    }
+]
+```
+
+# Admins patching user status (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/admin/users/2
+```
+Payload below as reference:
+```bash
+{
+    "is_active": true,
+    "is_admin": false,
+    "is_employer": false
+}
+```
+
 # Project Structure
 ```authentication_service/
 ├── uploads/
@@ -618,7 +670,8 @@ Example of the response:
 │   │   ├── application.py            # Jon application service
 │   │   ├── ml_client.py              # Mock ML service
 │   │   ├── email.py                  # Email service
-│   │   └── job.py                    # Job service
+│   │   ├── job.py                    # Job service
+│   │   └── admin.py                  # Admin service
 │   └── api/
 │       ├── __init__.py
 │       └── v1/
@@ -629,7 +682,8 @@ Example of the response:
 │               ├── profile.py        # Profile router
 │               ├── user.py           # User router
 │               ├── applications.py   # Job Application router
-│               └── job.py            # Jobs router
+│               ├── job.py            # Jobs router
+│               └── admin.py          # Admin router
 ├── requirements.txt
 ├── .env                              # Environment variables
 ├── run.py                            # Application entry point for dev
