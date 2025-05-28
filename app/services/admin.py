@@ -1,3 +1,12 @@
+"""
+Admin Management Service
+========================
+
+Handles business logic for admin-only user operations:
+- View all registered users (admin only)
+- Update user roles and statuses (admin, not allowed to update other admins or own status)
+"""
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -25,16 +34,23 @@ class AdminService:
 
     async def get_all_users(self, requesting_user: User) -> List[UserInDB]:
         """
-        Retrieve all users (admin only).
-        
+        Retrieve all users in the system. Restricted to admin users.
+
+        Flow:
+        1. Verifies the requesting user has admin rights.
+        2. Queries all users from the database.
+        3. Returns list of serialized user data.
+
         Args:
-            requesting_user: User making the request (must be admin).
-            
+            requesting_user (User): User making the request. Must be an admin.
+
         Returns:
-            List of all users.
-            
+            List[UserInDB]: Serialized list of users.
+
         Raises:
-            HTTPException: 403 if user is not admin.
+            HTTPException: 
+                - 403 if the requesting user is not an admin.
+                - 500 if retrieval fails.
         """
         if not requesting_user.is_admin:
             logger.error(f"Non-admin user {requesting_user.id} attempted to list all users")
@@ -63,18 +79,30 @@ class AdminService:
             requesting_user: User
         ) -> UserInDB:
         """
-        Admin-only user updates.
-        
+        Update another user's details. Restricted to admin users.
+
+        Flow:
+        1. Validates requesting user is an admin.
+        2. Fetches target user by ID.
+        3. Applies update fields from `UserUpdateAdmin`.
+        4. Blocks:
+           - Updating other admins.
+           - Admins demoting themselves.
+        5. Commits update and returns updated user.
+
         Args:
-            user_id (int): ID of user to update.
+            user_id (int): ID of the user to update.
             update_data (UserUpdateAdmin): Fields to modify.
-            requesting_user (User): Admin making the change.
-            
+            requesting_user (User): Admin performing the update.
+
         Returns:
-            Updated user data.
-            
+            UserInDB: Updated user data.
+
         Raises:
-            HTTPException: 403 if not admin, 404 if user not found.
+            HTTPException:
+                - 403 if the user is not an admin or tries to demote themselves.
+                - 404 if the target user does not exist.
+                - 500 if update fails.
         """
         if not requesting_user.is_admin:
             logger.error(f"Non-admin user {requesting_user.id} attempted to list all users")
@@ -94,6 +122,12 @@ class AdminService:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found"
+                )
+            if user.is_admin:
+                logger.error(f"Not allowed to update status of other admins")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Not allowed to update status of other admins"
                 )
             
             # Prevent self-modification of admin status
