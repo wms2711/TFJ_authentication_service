@@ -296,7 +296,6 @@ class JobService:
 
             # If user is not admin, shows only active and non-expired jobs
             if not getattr(current_user, "is_admin", False):
-                print("HERE")
                 query = query.where(
                     Job.is_active == True,
                     Job.expires_at >= datetime.utcnow()
