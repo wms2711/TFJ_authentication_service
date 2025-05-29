@@ -16,13 +16,14 @@ Security:
 import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, BackgroundTasks
 from typing import List, Optional
 from datetime import datetime
 from app.database.models.user import User
 from app.database.models.notification import Notification
 from app.schemas.notification import NotificationCreate, NotificationInDB
 from app.services.redis import RedisService
+from app.services.email import EmailService
 from utils.logger import init_logger
 
 # Configure logger
@@ -34,7 +35,8 @@ class NotificationService:
     def __init__(
             self,
             db: AsyncSession,
-            redis_service: Optional[RedisService] = None
+            redis_service: Optional[RedisService] = None,
+            email_service: Optional[EmailService] = None
         ):
         """
         Initialize with database session.
@@ -44,11 +46,13 @@ class NotificationService:
         """
         self.db = db
         self.redis = redis_service
+        self.email = email_service
 
     async def create_notification(
             self, 
             notification_payload: NotificationCreate, 
-            requesting_user: User
+            requesting_user: User,
+            background_tasks: BackgroundTasks
         ) -> NotificationInDB:
         """
         Create a new notification for a specific user.
@@ -76,7 +80,7 @@ class NotificationService:
             logger.error(f"Non-admin or non-employer user of user id: {requesting_user.id} attempted to create notification")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin privileges / Employer status required"
+                detail="Admin or employer privileges required"
             )
         try:
             # Find user exist and active
@@ -110,13 +114,32 @@ class NotificationService:
                 await self.db.rollback()
                 raise ValueError(f"Database commit failed: {str(db_exc)}")
             await self.db.refresh(notification)
+
+            # Send email notification
+            if self.email:
+                # Send email in background (production)
+                background_tasks.add_task(
+                    self.email.send_email_notification,
+                    user.email,
+                    notification_payload.notification_title,
+                    notification_payload.message
+                )
+            # elif self.email:
+            #     success = await self.email.send_email_notification(
+            #         user.email, 
+            #         notification_payload.notification_title, 
+            #         notification_payload.message
+            #     )
+            #     if not success:
+            #         logger.error(f"Failed to send reset email to {user.email}")
+            
             return notification
         
         except HTTPException:
             raise
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Failed to create notification for {notification_payload.user_id}: {str(e)}")
+            logger.exception(f"Failed to create notification for {notification_payload.user_id}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create notification"

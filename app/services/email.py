@@ -50,7 +50,24 @@ class EmailService:
             <p>This link will expire in 24 hours.</p>
             <p>If you didn't create an account, please ignore this email.</p>
         """
+    
+    def _build_notification_email_content(
+            self, 
+            message: str
+        ) -> str:
 
+        return f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <p>Hello,</p>
+                <p>{message}</p>
+                <p>If you did not expect this message, please ignore this email.</p>
+                <br/>
+                <p>Regards,<br/>The JobMatch Team</p>
+            </body>
+            </html>
+        """
+    
     async def _send_email(
             self, 
             to_email: str, 
@@ -155,3 +172,26 @@ class EmailService:
                 detail="Failed to send verification email"
             )
 
+    async def send_email_notification(self, email: str, title: str, message: str) -> bool:
+        """
+        Send email notification email to the specified recipient.
+        
+        Args:
+            email (str): Recipient's email address.
+            title (str): Email title.
+            message (str): Email message.
+            
+        Returns:
+            bool: True if email sent successfully, False otherwise.
+        """
+        try:
+            # Define content and send email
+            content = self._build_notification_email_content(message)
+            return await self._send_email(email, title, content)
+        
+        except Exception as e:
+            logger.exception(f"Failed to send verification email to {email}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send verification email"
+            )

@@ -13,13 +13,14 @@ Security:
 - Any authenticated user can view and mark their own notifications.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.database.session import async_get_db
 from app.schemas.notification import NotificationCreate, NotificationInDB
 from app.services.notification import NotificationService
 from app.services.redis import RedisService
+from app.services.email import EmailService
 from app.dependencies import get_current_user
 from app.database.models.user import User
 
@@ -33,8 +34,9 @@ router = APIRouter(
 @router.post("/", response_model=NotificationInDB)
 async def create_notification(
     notification_payload: NotificationCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     ADMIN / EMPLOYER ONLY: Create a new notification for a user.
@@ -43,6 +45,7 @@ async def create_notification(
     1. Authenticates current user.
     2. Verifies user is either admin or employer.
     3. Creates a notification targeted at a specific user.
+    4. Sends email notification.
 
     Args:
         notification_payload (NotificationCreate): Contains target user ID, title, and message.
@@ -59,8 +62,9 @@ async def create_notification(
             - 404 if the user is not found.
             - 500 if other errors.
     """
-    notification_service = NotificationService(db=db, redis_service=None)
-    return await notification_service.create_notification(notification_payload, current_user)
+    email_service = EmailService()
+    notification_service = NotificationService(db=db, redis_service=None, email_service=email_service)
+    return await notification_service.create_notification(notification_payload, current_user, background_tasks)
 
 @router.get("/", response_model=List[NotificationInDB])
 async def get_notifications(
@@ -85,7 +89,7 @@ async def get_notifications(
     Raises:
         HTTPException: 401 if authentication fails.
     """
-    notification_service = NotificationService(db=db, redis_service=redis)
+    notification_service = NotificationService(db=db, redis_service=redis, email_service=None)
     return await notification_service.get_notifications_for_user(current_user)
 
 @router.patch("/{notif_id}", response_model=NotificationInDB)
@@ -116,5 +120,5 @@ async def mark_notification_as_read(
             - 404 if notification not found.
             - 500 if other errors.
     """
-    notification_service = NotificationService(db=db, redis_service=None)
+    notification_service = NotificationService(db=db, redis_service=None, email_service=None)
     return await notification_service.mark_as_read(notif_id, current_user)
