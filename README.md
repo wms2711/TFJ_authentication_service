@@ -73,6 +73,10 @@ python3 worker.py
 - Added notification service
 ###### V1.6.1
 - Create notification - only admins and employers can do so (to add send mobile notification)
+###### V1.6.2
+- Create notification - users fetch notifications
+###### V1.6.3
+- Mark as read - users read notification
 
 # Add valid header for Authorization example
 | Key           | Value |
@@ -650,6 +654,46 @@ Payload below as reference:
 }
 ```
 
+# User read notifications (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/notification/
+```
+Response below as reference:
+```bash
+[
+    {
+        "user_id": 1,
+        "notification_title": "Application status updates",
+        "message": "Your application was accepted",
+        "id": 5,
+        "is_read": true
+    },
+    {
+        "user_id": 1,
+        "notification_title": "Application status updates",
+        "message": "Your application was accepted",
+        "id": 7,
+        "is_read": true
+    }
+]
+```
+
+# Mark as read after user read notification (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PATCH` request to:
+```bash
+http://127.0.0.1:9000/notification/{notification_id}
+```
+Response below as reference:
+```bash
+{
+    "user_id": 1,
+    "notification_title": "Application status updates",
+    "message": "Your application was accepted",
+    "id": 5,
+    "is_read": true
+}
+```
 # Project Structure
 ```authentication_service/
 ├── uploads/
