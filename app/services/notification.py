@@ -13,14 +13,16 @@ Security:
 - Only the owner of a notification can mark it as read.
 """
 
+import json
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from app.database.models.user import User
 from app.database.models.notification import Notification
 from app.schemas.notification import NotificationCreate, NotificationInDB
+from app.services.redis import RedisService
 from utils.logger import init_logger
 
 # Configure logger
@@ -29,7 +31,11 @@ logger = init_logger("NotificationService")
 class NotificationService:
     """Service for notification management"""
 
-    def __init__(self, db: AsyncSession):
+    def __init__(
+            self,
+            db: AsyncSession,
+            redis_service: Optional[RedisService] = None
+        ):
         """
         Initialize with database session.
         
@@ -37,6 +43,7 @@ class NotificationService:
             db (AsyncSession): SQLAlchemy async database session.
         """
         self.db = db
+        self.redis = redis_service
 
     async def create_notification(
             self, 
@@ -137,14 +144,39 @@ class NotificationService:
                 - 500 if retrieval fails.
         """
         try:
+            # Generate cache key
+            cache_key = f"notifications:user:{requesting_user.id}"
+
+            # Try cache first if Redis is available
+            if self.redis:
+                try:
+                    if cached := await self.redis.get_cache(cache_key):
+                        logger.debug(f"Cache hit for notifications of user {requesting_user.id}")
+                        return [NotificationInDB.model_validate_json(n) for n in json.loads(cached)]
+                except Exception as e:
+                    logger.warning(f"Cache check failed, proceeding to DB: {str(e)}")
+
+            # Else query database
             result = await self.db.execute(
                 select(Notification).where(Notification.user_id == requesting_user.id)
             )
             notifications = result.scalars().all()
             logger.info(f"Found {len(notifications)} notifications")
-            return [NotificationInDB.model_validate(notification) for notification in notifications]
+            serialized_notifications = [NotificationInDB.model_validate(notification) for notification in notifications]
+
+            # Update cache
+            if self.redis and notifications:
+                try:
+                    await self.redis.set_cache(
+                        cache_key,
+                        json.dumps([n.model_dump_json() for n in serialized_notifications]),
+                        ttl=300  # Cache for 5 minutes
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to update notifications cache: {str(e)}")
+
+            return serialized_notifications
         
-        # TODO: add cache?
         except Exception as e:
             logger.error(f"Failed to retrieve notifications: {str(e)}")
             raise HTTPException(

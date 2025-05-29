@@ -19,6 +19,7 @@ from typing import List
 from app.database.session import async_get_db
 from app.schemas.notification import NotificationCreate, NotificationInDB
 from app.services.notification import NotificationService
+from app.services.redis import RedisService
 from app.dependencies import get_current_user
 from app.database.models.user import User
 
@@ -58,13 +59,14 @@ async def create_notification(
             - 404 if the user is not found.
             - 500 if other errors.
     """
-    notification_service = NotificationService(db)
+    notification_service = NotificationService(db=db, redis_service=None)
     return await notification_service.create_notification(notification_payload, current_user)
 
 @router.get("/", response_model=List[NotificationInDB])
 async def get_notifications(
     db: AsyncSession = Depends(async_get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    redis: RedisService = Depends(RedisService)
 ):
     """
     Fetch all notifications for the currently logged-in user.
@@ -83,7 +85,7 @@ async def get_notifications(
     Raises:
         HTTPException: 401 if authentication fails.
     """
-    notification_service = NotificationService(db)
+    notification_service = NotificationService(db=db, redis_service=redis)
     return await notification_service.get_notifications_for_user(current_user)
 
 @router.patch("/{notif_id}", response_model=NotificationInDB)
@@ -114,5 +116,5 @@ async def mark_notification_as_read(
             - 404 if notification not found.
             - 500 if other errors.
     """
-    notification_service = NotificationService(db)
+    notification_service = NotificationService(db=db, redis_service=None)
     return await notification_service.mark_as_read(notif_id, current_user)
