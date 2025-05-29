@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.database.base import Base
 from app.database.session import engine
-from app.api.v1.endpoints import auth, user, profile, applications, job, admin
+from app.api.v1.endpoints import auth, user, profile, applications, job, admin, notification
 
 # Models for database creation
 from app.database.models.user import User as UserDB
@@ -34,12 +34,14 @@ Base.metadata.create_all(bind=engine)
 # - applications.router: Contains application management when user apply or swipe right for jobs (/application)
 # - job.router: Contains job management when job poster post job, update jobs, condidate fetch jobs
 # - admin.router: Containes admin management getting all users and activate or deactivate users
+# - notification.router: Contains notification management like creation, updating and listing
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(profile.router)
 app.include_router(applications.router)
 app.include_router(job.router)
 app.include_router(admin.router)
+app.include_router(notification.router)
 
 # TODO implement:
 # - /admin endpoints for admin-only operations 
