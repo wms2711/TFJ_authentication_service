@@ -28,7 +28,7 @@ class Notification(Base):
 
     # Notification creation
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, nullable=False)
     notification_title = Column(String, nullable=False)
     message = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

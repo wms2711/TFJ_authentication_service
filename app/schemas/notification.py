@@ -17,7 +17,15 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 
-class NotificationCreate(BaseModel):
+class NotificationBase(BaseModel):
+    user_id: int
+    notification_title: str
+    message: str
+
+    class Config:
+        extra = "forbid"  # Disallow unknown fields
+
+class NotificationCreate(NotificationBase):
     """
     Schema for notification creation requests from admins and employers
 
@@ -26,9 +34,10 @@ class NotificationCreate(BaseModel):
         notification_title (str): title.
         message (str): message of the notification.
     """
-    user_id: int
-    notification_title: str
-    message: str
+    pass
 
     class Config:
         extra = "forbid"  # Disallow unknown fields
+
+class NotificationInDB(NotificationBase):
+    id: int
