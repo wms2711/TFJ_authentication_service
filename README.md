@@ -74,7 +74,7 @@ python3 worker.py
 ###### V1.6.1
 - Create notification - only admins and employers can do so (to add send mobile notification)
 ###### V1.6.2
-- Create notification - users fetch notifications
+- Create notification - users fetch notifications with cache
 ###### V1.6.3
 - Mark as read - users read notification
 
