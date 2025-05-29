@@ -1,3 +1,18 @@
+"""
+Notification Service
+====================
+
+Handles business logic for sending and managing user notifications:
+- Admins and Employers can send notifications to users.
+- Users can view their own notifications.
+- Users can mark notifications as read.
+
+Security:
+---------
+- Only admins and employers can create/send notifications.
+- Only the owner of a notification can mark it as read.
+"""
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
@@ -28,7 +43,28 @@ class NotificationService:
             notification_payload: NotificationCreate, 
             requesting_user: User
         ) -> NotificationInDB:
+        """
+        Create a new notification for a specific user.
+        Restricted to admins and employers.
 
+        Flow:
+        1. Validates if requesting user is admin or employer.
+        2. Ensures target user exists and is active.
+        3. Creates and stores notification in database.
+
+        Args:
+            notification_payload (NotificationCreate): Payload with target user and message details.
+            requesting_user (User): Authenticated user making the request.
+
+        Returns:
+            NotificationInDB: Newly created notification.
+
+        Raises:
+            HTTPException:
+                - 403 if the user lacks permission.
+                - 404 if target user does not exist.
+                - 500 if notification creation fails.
+        """
         if not requesting_user.is_admin and not requesting_user.is_employer:
             logger.error(f"Non-admin or non-employer user of user id: {requesting_user.id} attempted to create notification")
             raise HTTPException(
@@ -83,6 +119,23 @@ class NotificationService:
             self, 
             requesting_user: User
         ) -> List[NotificationInDB]:
+        """
+        Retrieve all notifications for the authenticated user.
+
+        Flow:
+        1. Uses user ID from request to filter notifications.
+        2. Returns serialized list of notifications.
+
+        Args:
+            requesting_user (User): Authenticated user making the request.
+
+        Returns:
+            List[NotificationInDB]: List of notifications belonging to the user.
+
+        Raises:
+            HTTPException:
+                - 500 if retrieval fails.
+        """
         try:
             result = await self.db.execute(
                 select(Notification).where(Notification.user_id == requesting_user.id)
@@ -104,6 +157,28 @@ class NotificationService:
             notif_id: int, 
             requesting_user: User
         ) -> NotificationInDB:
+        """
+        Mark a specific notification as read.
+        Only the notification owner can perform this action.
+
+        Flow:
+        1. Validates notification exists.
+        2. Checks if current user is the owner.
+        3. Marks as read and updates `updated_at`.
+
+        Args:
+            notif_id (int): ID of the notification to mark as read.
+            requesting_user (User): Authenticated user making the request.
+
+        Returns:
+            NotificationInDB: Updated notification object.
+
+        Raises:
+            HTTPException:
+                - 404 if notification not found.
+                - 403 if user is not the owner.
+                - 500 if update fails.
+        """
         try:
             stmt = select(Notification).where(Notification.id == notif_id)
             result = await self.db.execute(stmt)
