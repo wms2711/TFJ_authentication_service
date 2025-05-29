@@ -22,3 +22,11 @@ async def create_notification(
 ):
     notification_service = NotificationService(db)
     return await notification_service.create_notification(notification_payload, current_user)
+
+@router.get("/", response_model=List[NotificationInDB])
+async def get_notifications(
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    notification_service = NotificationService(db)
+    return await notification_service.get_notifications_for_user(current_user)

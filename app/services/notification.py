@@ -78,3 +78,22 @@ class NotificationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create notification"
             )
+        
+    async def get_notifications_for_user(
+            self, 
+            requesting_user: User
+        ) -> List[NotificationInDB]:
+        try:
+            result = await self.db.execute(
+                select(Notification).where(Notification.user_id == requesting_user.id)
+            )
+            notifications = result.scalars().all()
+            logger.info(f"Found {len(notifications)} notifications")
+            return [NotificationInDB.model_validate(notification) for notification in notifications]
+        
+        except Exception as e:
+            logger.error(f"Failed to retrieve notifications: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve notifications"
+            )

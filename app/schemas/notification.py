@@ -41,3 +41,7 @@ class NotificationCreate(NotificationBase):
 
 class NotificationInDB(NotificationBase):
     id: int
+    is_read: bool
+
+    class Config:
+        from_attributes = True
