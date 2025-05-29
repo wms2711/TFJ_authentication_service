@@ -69,6 +69,11 @@ python3 worker.py
 ###### V1.5.2
 - Updating user status (is_active, is_admin, is_employer) - only admins can modify, admin cannot modify itself or other admins
 
+### V1.6.0
+- Added notification service
+###### V1.6.1
+- Create notification - only admins and employers can do so (to add send mobile notification)
+
 # Add valid header for Authorization example
 | Key           | Value |
 |---------------|-------|
@@ -631,6 +636,20 @@ Payload below as reference:
 }
 ```
 
+# Notification creation (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/notification/
+```
+Payload below as reference:
+```bash
+{
+    "user_id": 2,
+    "notification_title": "Application status updates",
+    "message": "Your application was accepted"
+}
+```
+
 # Project Structure
 ```authentication_service/
 ├── uploads/
@@ -653,14 +672,16 @@ Payload below as reference:
 │   │       ├── user.py               # Database: User model
 │   │       ├── profile.py            # Database: User profile model
 │   │       ├── application.py        # Database: Job application model
-│   │       └── job.py                # Database: Jobs model
+│   │       ├── job.py                # Database: Jobs model
+│   │       └── notification.py       # Database: Notification model
 │   ├── schemas/                      # Pydantic models
 │   │   ├── __init__.py
 │   │   ├── user.py                   # User Data Schemas
 │   │   ├── token.py                  # Authentication Token Schemas
 │   │   ├── profile.py                # User Profile Data Schemas
 │   │   ├── application.py            # Job Application Data Schemas
-│   │   └── job.py                    # Jobs Data Schemas
+│   │   ├── job.py                    # Jobs Data Schemas
+│   │   └── notification.py           # Notification Data Schemas
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── auth.py                   # Auth service
@@ -671,7 +692,8 @@ Payload below as reference:
 │   │   ├── ml_client.py              # Mock ML service
 │   │   ├── email.py                  # Email service
 │   │   ├── job.py                    # Job service
-│   │   └── admin.py                  # Admin service
+│   │   ├── admin.py                  # Admin service
+│   │   └── notification.py           # Notification service
 │   └── api/
 │       ├── __init__.py
 │       └── v1/
@@ -683,7 +705,8 @@ Payload below as reference:
 │               ├── user.py           # User router
 │               ├── applications.py   # Job Application router
 │               ├── job.py            # Jobs router
-│               └── admin.py          # Admin router
+│               ├── admin.py          # Admin router
+│               └── notification.py   # Notification router
 ├── requirements.txt
 ├── .env                              # Environment variables
 ├── run.py                            # Application entry point for dev
