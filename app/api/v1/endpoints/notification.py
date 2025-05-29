@@ -30,3 +30,12 @@ async def get_notifications(
 ):
     notification_service = NotificationService(db)
     return await notification_service.get_notifications_for_user(current_user)
+
+@router.patch("/{notif_id}", response_model=NotificationInDB)
+async def mark_notification_as_read(
+    notif_id: int,
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    notification_service = NotificationService(db)
+    return await notification_service.mark_as_read(notif_id, current_user)

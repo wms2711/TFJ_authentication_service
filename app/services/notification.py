@@ -91,9 +91,53 @@ class NotificationService:
             logger.info(f"Found {len(notifications)} notifications")
             return [NotificationInDB.model_validate(notification) for notification in notifications]
         
+        # TODO: add cache?
         except Exception as e:
             logger.error(f"Failed to retrieve notifications: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to retrieve notifications"
+            )
+        
+    async def mark_as_read(
+            self,
+            notif_id: int, 
+            requesting_user: User
+        ) -> NotificationInDB:
+        try:
+            stmt = select(Notification).where(Notification.id == notif_id)
+            result = await self.db.execute(stmt)
+            notif = result.scalar_one_or_none()
+            if not notif:
+                logger.warning(f"Notification not found with notif_id: {notif_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Notification does not exist"
+                )
+            if requesting_user.id != notif.user_id:
+                logger.warning(f"This user_id {requesting_user.id} has no permission adjusting notification from user_id {notif.user_id}, notif_id {notif_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"You do not have permission to update"
+                )
+            
+            notif.is_read = True
+            notif.updated_at = datetime.utcnow()
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Database commit failed for notif_id={notif_id}: {db_exc}")
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+            await self.db.refresh(notif)
+            return notif
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error during notification update for notif_id={notif_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update notifications"
             )

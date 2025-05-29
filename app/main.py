@@ -43,11 +43,6 @@ app.include_router(job.router)
 app.include_router(admin.router)
 app.include_router(notification.router)
 
-# TODO implement:
-# - /admin endpoints for admin-only operations 
-    # GET /admin/users to list all user
-    # PATCH /admin/users/{id}/status for admin to deactivate or activate users
-
 # Root Endpoint
 # -------------
 # A simple health check endpoint that:
