@@ -158,23 +158,25 @@ class ProfileService:
             upload_dir: str
         ) -> dict:
         """
-        Upload and associate a resume file with the user profile.
-        
-        - Saves the file with a unique name.
-        - Replaces existing resume if any.
-        
+        Upload a resume file and associate it with a user's profile.
+
+        - Stores the resume in a user-specific directory with a unique filename.
+        - Replaces any existing current resume.
+        - Maintains only the 10 most recent resumes.
+
         Args:
-            user_id (int): ID of the user.
-            file (UploadFile): Uploaded file object.
-            upload_dir (str): Directory to store uploaded resumes.
-        
+            user_id (int): ID of the user uploading the resume.
+            file (UploadFile): The uploaded resume file.
+            upload_dir (str): Base directory where resumes should be saved.
+
         Returns:
-            dict: Metadata of uploaded file.
+            dict: Metadata of the uploaded resume, including resume ID, file path, and upload timestamp.
 
         Raises:
-            HTTPException: 
-                - 404 if user not found.
-                - 500 if a database error occurs.
+            HTTPException:
+                - 400: If the uploaded file is invalid.
+                - 404: If the user profile does not exist.
+                - 500: On file write failure, database commit failure, or unexpected error.
         """
         # TODO: Safe as binary data in database? (Not recommended as perform bad at scale? might cause slow queries, inflate db size?) 
         # or use storage system (cloud storage?) and save url of resume in database?
@@ -268,18 +270,22 @@ class ProfileService:
             resume_id: str
         ) -> bool:
         """
-        Delete the resume file associated with a user's profile.
-        
+        Delete a specific resume associated with a user's profile.
+
+        - Deletes the file from the filesystem.
+        - Removes the resume metadata from the user's profile.
+        - Updates the `current_resume_id` field if the current resume is deleted.
+
         Args:
             user_id (int): ID of the user.
-        
+            resume_id (str): ID of the resume to be deleted.
+
         Returns:
-            bool: True if deleted successfully, False otherwise.
+            bool: True if deletion is successful, False otherwise.
 
         Raises:
-            HTTPException: 
-                - 500 if a database error occurs.
-                - 500 if an unexpected error occurs during resume deletion.
+            HTTPException:
+                - 500: On database commit failure or unexpected error.
         """
         try:
             db_profile = await self.get_profile_by_user_id(user_id)
@@ -328,5 +334,72 @@ class ProfileService:
             self, 
             user_id: int
         ) -> list:
-        profile = await self.get_profile_by_user_id(user_id)
-        return profile.resumes if profile else []
+        """
+        Retrieve all resumes associated with a user's profile.
+
+        Args:
+            user_id (int): ID of the user.
+
+        Returns:
+            list: A list of resume dictionaries.
+
+        Raises:
+            HTTPException: 500 if a database error occurs.
+        """
+        try:
+            profile = await self.get_profile_by_user_id(user_id)
+            return profile.resumes if profile else []
+        
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"Failed to retrieve resumes for user_id {user_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Error retrieving resumes")
+        
+    async def get_resume_by_id(
+            self, 
+            user_id: int, 
+            resume_id: str
+        ) -> dict:
+        """
+        Retrieve a specific resume by ID and verify the file exists.
+
+        Args:
+            user_id (int): ID of the user.
+            resume_id (str): UUID of the resume.
+
+        Returns:
+            dict: The resume metadata.
+
+        Raises:
+            HTTPException: 
+                - 404 if profile, resumes, or specific resume not found.
+                - 500 if a database error or file check fails.
+        """
+        try:
+            profile = await self.get_profile_by_user_id(user_id)
+            if not profile or not profile.resumes:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Profile / Resumes found for user"
+                )
+            resume = next((r for r in profile.resumes if r["id"] == resume_id), None)
+            if not resume:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Resume not found"
+                )
+        
+            if not os.path.exists(resume["url"]):
+                logger.error(f"File not found at path: {resume['url']}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Resume file not found on server"
+                )
+            return resume
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error retrieving resume {resume_id} for user_id {user_id}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Error retrieving resume")

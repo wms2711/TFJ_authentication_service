@@ -148,6 +148,25 @@ async def list_resumes(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(async_get_db),
 ):
+    """
+    Retrieve all resumes uploaded by the currently authenticated user.
+
+    - Returns a list of resume metadata entries.
+    - The latest (current) resume is marked with `is_current = True`.
+
+    Requires:
+        - Authenticated user.
+
+    Returns:
+        List[ResumeItemResponse]: A list of resume metadata dictionaries containing:
+            - resume_id
+            - filename
+            - url
+            - size
+            - type
+            - uploaded_at
+            - is_current
+    """
     service = ProfileService(db)
     return await service.get_resumes(current_user.id)
 
@@ -199,11 +218,11 @@ async def delete_my_resume(
     db: AsyncSession = Depends(async_get_db),
 ):
     """
-    Delete current user's resume.
+    Delete current user's resume that user specifies
     
     Flow:
-    1. Removes resume file from storage.
-    2. Clears resume metadata from profile.
+    1. Removes specific resume file from storage.
+    2. Clears or updates resume metadata from profile.
     
     Args:
         current_user (User): Authenticate and automatically inject user details from JWT.
@@ -226,45 +245,37 @@ async def delete_my_resume(
     return None
 
 
-# @router.get("/me/resume")
-# async def download_my_resume(
-#     current_user: User = Depends(get_current_user),
-#     # db: Session = Depends(get_db),
-#     db: AsyncSession = Depends(async_get_db),
-# ):
-#     """
-#     Download current user's resume
+@router.get("/me/resume/{resume_id}")
+async def download_my_resume(
+    resume_id: str,
+    current_user: User = Depends(get_current_user),
+    # db: Session = Depends(get_db),
+    db: AsyncSession = Depends(async_get_db),
+):
+    """
+    Download current user's resume
     
-#     Flow:
-#     1. Checks if resume exists
-#     2. Streams file directly to client
+    Flow:
+    1. Checks if resume exists
+    2. Streams file directly to client
     
-#     Args:
-#         current_user: Authenticated user from JWT
-#         db: Active database session
+    Args:
+        current_user: Authenticated user from JWT
+        db: Active database session
         
-#     Returns:
-#         FileResponse: Binary file stream with proper headers
+    Returns:
+        FileResponse: Binary file stream with proper headers
         
-#     Raises:
-#         HTTPException:
-#             - 404 if no resume exists
-#             - 401 if not authenticated
-#     """
-#     profile_service = ProfileService(db)
-#     profile = await profile_service.get_profile_by_user_id(current_user.id)
-    
-#     if not profile or not profile.resume_url:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail="Resume not found"
-#         )
-    
-#     return FileResponse(
-#         path=profile.resume_url,
-#         filename=profile.resume_original_filename,
-#         media_type="application/octet-stream"
-#     )
-
-# TODO implement:
-# - Store multiple resume?
+    Raises:
+        HTTPException:
+            - 404 if no resume exists
+            - 401 if not authenticated
+    """
+    profile_service = ProfileService(db)
+    resume = await profile_service.get_resume_by_id(current_user.id, resume_id)
+    return FileResponse(
+        path=resume["url"],
+        filename=resume["filename"],
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename={resume['filename']}"}
+    )
