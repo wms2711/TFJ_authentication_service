@@ -13,13 +13,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 
 from app.services.profile import ProfileService
 from app.schemas.profile import (
     UserProfileCreate,
     UserProfileUpdate,
-    UserProfileInDB
+    UserProfileInDB,
+    ResumeItemResponse
 )
 from app.database.session import get_db, async_get_db
 from app.services.auth import AuthService
@@ -142,6 +143,13 @@ async def update_my_profile(
         )
     return updated_profile
 
+@router.get("/me/resumes", response_model=List[ResumeItemResponse])
+async def list_resumes(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db),
+):
+    service = ProfileService(db)
+    return await service.get_resumes(current_user.id)
 
 @router.post("/me/resume")
 async def upload_my_resume(
@@ -218,45 +226,45 @@ async def delete_my_resume(
     return None
 
 
-@router.get("/me/resume")
-async def download_my_resume(
-    current_user: User = Depends(get_current_user),
-    # db: Session = Depends(get_db),
-    db: AsyncSession = Depends(async_get_db),
-):
-    """
-    Download current user's resume
+# @router.get("/me/resume")
+# async def download_my_resume(
+#     current_user: User = Depends(get_current_user),
+#     # db: Session = Depends(get_db),
+#     db: AsyncSession = Depends(async_get_db),
+# ):
+#     """
+#     Download current user's resume
     
-    Flow:
-    1. Checks if resume exists
-    2. Streams file directly to client
+#     Flow:
+#     1. Checks if resume exists
+#     2. Streams file directly to client
     
-    Args:
-        current_user: Authenticated user from JWT
-        db: Active database session
+#     Args:
+#         current_user: Authenticated user from JWT
+#         db: Active database session
         
-    Returns:
-        FileResponse: Binary file stream with proper headers
+#     Returns:
+#         FileResponse: Binary file stream with proper headers
         
-    Raises:
-        HTTPException:
-            - 404 if no resume exists
-            - 401 if not authenticated
-    """
-    profile_service = ProfileService(db)
-    profile = await profile_service.get_profile_by_user_id(current_user.id)
+#     Raises:
+#         HTTPException:
+#             - 404 if no resume exists
+#             - 401 if not authenticated
+#     """
+#     profile_service = ProfileService(db)
+#     profile = await profile_service.get_profile_by_user_id(current_user.id)
     
-    if not profile or not profile.resume_url:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resume not found"
-        )
+#     if not profile or not profile.resume_url:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Resume not found"
+#         )
     
-    return FileResponse(
-        path=profile.resume_url,
-        filename=profile.resume_original_filename,
-        media_type="application/octet-stream"
-    )
+#     return FileResponse(
+#         path=profile.resume_url,
+#         filename=profile.resume_original_filename,
+#         media_type="application/octet-stream"
+#     )
 
 # TODO implement:
 # - Store multiple resume?

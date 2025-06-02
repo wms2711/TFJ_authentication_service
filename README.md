@@ -340,6 +340,31 @@ Example of the response:
 None or 204 No content
 ```
 
+# User retrieve all resumes that he/she has (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/profiles/me/resumes
+```
+Example of the response:
+```bash
+[
+    {
+        "id": "7b7b31b1-a409-4692-a835-2499eeddce26",
+        "filename": "test_doc.docx",
+        "url": "uploads/resumes/1/20250602_060354_57dbae3048ab4d0aae5694eda70575ef.docx",
+        "is_current": false,
+        "uploaded_at": "2025-06-02T06:03:54.133088"
+    },
+    {
+        "id": "25269895-7157-4498-87c1-8c860127fba4",
+        "filename": "test_doc.docx",
+        "url": "uploads/resumes/1/20250602_063504_5723dabc0237438698b146d50ef5f624.docx",
+        "is_current": true,
+        "uploaded_at": "2025-06-02T06:35:04.744976"
+    }
+]
+```
+
 # Get resume or download resume (to test this, you should /auth/login first and input the response from login into Header "Authorization")
 Send a `GET` request to:
 ```bash

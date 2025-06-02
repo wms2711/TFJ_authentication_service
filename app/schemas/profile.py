@@ -203,3 +203,10 @@ class UserProfilePublic(UserProfileInDB):
         UserProfileInDB
     """
     pass
+
+class ResumeItemResponse(BaseModel):
+    id: str
+    filename: str
+    url: str
+    is_current: bool
+    uploaded_at: datetime

@@ -323,3 +323,10 @@ class ProfileService:
             await self.db.rollback()
             logger.exception(f"Unexpected error deleting resume {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Error deleting resume")
+        
+    async def get_resumes(
+            self, 
+            user_id: int
+        ) -> list:
+        profile = await self.get_profile_by_user_id(user_id)
+        return profile.resumes if profile else []
