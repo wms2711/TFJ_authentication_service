@@ -365,6 +365,22 @@ Example of the response:
 ]
 ```
 
+# User set this resume as the one he wants to use for applying jobs (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PATCH` request to:
+```bash
+http://127.0.0.1:9000/profiles/me/resumes/25269895-7157-4498-87c1-8c860127fba4/set-current
+```
+Example of the response:
+```bash
+{
+    "id": "25269895-7157-4498-87c1-8c860127fba4",
+    "filename": "test_doc.docx",
+    "url": "uploads/resumes/1/20250602_063504_5723dabc0237438698b146d50ef5f624.docx",
+    "is_current": true,
+    "uploaded_at": "2025-06-02T06:35:04.744976"
+}
+```
+
 # Get resume or download resume (to test this, you should /auth/login first and input the response from login into Header "Authorization")
 Send a `GET` request to:
 ```bash

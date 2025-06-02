@@ -403,3 +403,69 @@ class ProfileService:
         except Exception as e:
             logger.exception(f"Unexpected error retrieving resume {resume_id} for user_id {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Error retrieving resume")
+        
+    async def set_current_resume(
+            self, 
+            user_id: int, 
+            resume_id: str
+        ) -> Optional[dict]:
+        try:
+            # Find profile
+            db_profile = await self.get_profile_by_user_id(user_id)
+            if not db_profile or not db_profile.resumes:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Profile / Resumes found for user"
+                )
+
+            # Verify resume exists in profile
+            target_resume = next((r for r in db_profile.resumes if r["id"] == resume_id), None)
+            if not target_resume:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Resume not found"
+                )
+            
+            # Update all resume
+            updated_resumes = []
+            for resume in db_profile.resumes:
+                resume_copy = dict(resume)  # Create a copy to modify
+                resume_copy["is_current"] = (resume["id"] == resume_id)
+                updated_resumes.append(resume_copy)
+
+            db_profile.resumes = updated_resumes
+            db_profile.current_resume_id = resume_id
+            db_profile.updated_at = datetime.utcnow()
+
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.exception(
+                    f"Database commit failed setting current resume for user_id {user_id}: {db_exc}",
+                    exc_info=True
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database commit failed"
+                )
+            await self.db.refresh(db_profile)
+            return {
+                "id": target_resume["id"],
+                "filename": target_resume["filename"],
+                "url": target_resume["url"],
+                "uploaded_at": target_resume["uploaded_at"],
+                "is_current": True,
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(
+                f"Unexpected error setting current resume for user {user_id}: {e}",
+                exc_info=True
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error setting current resume"
+            )

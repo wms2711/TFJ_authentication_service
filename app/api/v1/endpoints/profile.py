@@ -279,3 +279,30 @@ async def download_my_resume(
         media_type="application/octet-stream",
         headers={"Content-Disposition": f"attachment; filename={resume['filename']}"}
     )
+
+@router.patch(
+    "/me/resumes/{resume_id}/set-current",
+    response_model=ResumeItemResponse,
+    status_code=200
+)
+async def set_current_resume(
+    resume_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db),
+):
+    """
+    Set specific resume version as current and return updated resume info.
+    
+    Args:
+        resume_id: UUID of the resume to set as current
+        current_user: Authenticated user
+        db: Database session
+        
+    Returns:
+        ResumeItemResponse: The newly set current resume
+        
+    Raises:
+        HTTPException: 404 if resume not found
+    """
+    profile_service = ProfileService(db)
+    return await profile_service.set_current_resume(current_user.id, resume_id)
