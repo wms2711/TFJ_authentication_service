@@ -333,7 +333,7 @@ Example of the response:
 # Delete resume (to test this, you should /auth/login first and input the response from login into Header "Authorization")
 Send a `DELETE` request to:
 ```bash
-http://127.0.0.1:9000/profiles/me/resume
+http://127.0.0.1:9000/profiles/me/resume/25269895-7157-4498-87c1-8c860127fba4
 ```
 Example of the response:
 ```bash
@@ -368,7 +368,7 @@ Example of the response:
 # Get resume or download resume (to test this, you should /auth/login first and input the response from login into Header "Authorization")
 Send a `GET` request to:
 ```bash
-http://127.0.0.1:9000/profiles/me/resume
+http://127.0.0.1:9000/profiles/me/resume/25269895-7157-4498-87c1-8c860127fba4
 ```
 Example of the response header:
 ```bash
