@@ -264,7 +264,8 @@ class ProfileService:
 
     async def delete_resume(
             self, 
-            user_id: int
+            user_id: int,
+            resume_id: str
         ) -> bool:
         """
         Delete the resume file associated with a user's profile.
@@ -282,19 +283,30 @@ class ProfileService:
         """
         try:
             db_profile = await self.get_profile_by_user_id(user_id)
-            if not db_profile or not db_profile.resume_url:
+            if not db_profile or not db_profile.resumes:
                 return False
         
+            # Find resume to delete
+            resume_to_delete = next((r for r in db_profile.resumes if r["id"] == resume_id), None)
+            if not resume_to_delete:
+                return False
+            
             # Delete file
-            if os.path.exists(db_profile.resume_url):
-                try:
-                    os.remove(db_profile.resume_url)
-                except Exception as e:
-                    logger.warning(f"Failed to delete resume file: {str(e)}")
+            try:
+                if os.path.exists(resume_to_delete["url"]):
+                    os.unlink(resume_to_delete["url"])
+            except Exception as e:
+                logger.error(f"Failed to delete resume file: {str(e)}")
+
         
             # Update profile
-            db_profile.resume_url = None
-            db_profile.resume_original_filename = None
+            new_resumes = [r for r in db_profile.resumes if r["id"] != resume_id]
+            
+            if db_profile.current_resume_id == resume_id:
+                db_profile.current_resume_id = new_resumes[0]["id"] if new_resumes else None
+                if new_resumes:
+                    new_resumes[0]["is_current"] = True
+            db_profile.resumes = new_resumes
             db_profile.updated_at = datetime.utcnow()
 
             try:

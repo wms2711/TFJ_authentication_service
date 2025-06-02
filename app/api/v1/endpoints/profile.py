@@ -19,8 +19,7 @@ from app.services.profile import ProfileService
 from app.schemas.profile import (
     UserProfileCreate,
     UserProfileUpdate,
-    UserProfileInDB,
-    ResumeUploadResponse
+    UserProfileInDB
 )
 from app.database.session import get_db, async_get_db
 from app.services.auth import AuthService
@@ -184,8 +183,9 @@ async def upload_my_resume(
     return await profile_service.upload_resume(current_user.id, file, upload_dir)
 
 
-@router.delete("/me/resume", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/me/resume/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_my_resume(
+    resume_id: str,
     current_user: User = Depends(get_current_user),
     # db: Session = Depends(get_db),
     db: AsyncSession = Depends(async_get_db),
@@ -210,10 +210,10 @@ async def delete_my_resume(
             - 401 if not authenticated.
     """
     profile_service = ProfileService(db)
-    if not await profile_service.delete_resume(current_user.id):
+    if not await profile_service.delete_resume(current_user.id, resume_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resume not found"
+            detail="Profile / Resume not found"
         )
     return None
 

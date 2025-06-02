@@ -180,8 +180,8 @@ class UserProfileInDB(UserProfileBase):
     education: Optional[List[Dict[str, Any]]] = None
     experience: Optional[List[Dict[str, Any]]] = None
     skills: Optional[List[Dict[str, Any]]] = None
-    resume_url: Optional[str] = None
-    resume_original_filename: Optional[str] = None
+    resumes: Optional[str] = None
+    current_resume_id: Optional[str] = None
     preferred_job_titles: Optional[List[str]] = None
     preferred_locations: Optional[List[str]] = None
     preferred_salary: Optional[str] = None
@@ -203,17 +203,3 @@ class UserProfilePublic(UserProfileInDB):
         UserProfileInDB
     """
     pass
-
-
-class ResumeUploadResponse(BaseModel):
-    """
-    Schema for the response returned after a successful resume upload.
-
-    Fields:
-        message (str): Status message.
-        resume_url (Optional[str]): Path to uploaded file.
-        filename (Optional[str]): Original filename.
-    """
-    message: str
-    resume_url: Optional[str] = None
-    filename: Optional[str] = None
