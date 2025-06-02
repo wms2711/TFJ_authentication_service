@@ -409,6 +409,26 @@ class ProfileService:
             user_id: int, 
             resume_id: str
         ) -> Optional[dict]:
+        """
+        Set a specific resume as the current active resume for a user's profile.
+
+        Args:
+            user_id (int): The ID of the user whose resume is being set.
+            resume_id (str): The ID of the resume to be marked as current.
+
+        Returns:
+            Optional[dict]: A dictionary containing the details of the updated current resume:
+                - id (str): Resume ID.
+                - filename (str): Name of the uploaded resume file.
+                - url (str): Path/URL to the stored resume.
+                - uploaded_at (datetime): Timestamp of when the resume was uploaded.
+                - is_current (bool): Indicates this is the active resume (always True here).
+
+        Raises:
+            HTTPException:
+                - 404: If the user profile or resume is not found.
+                - 500: On database commit failure or unexpected errors.
+        """
         try:
             # Find profile
             db_profile = await self.get_profile_by_user_id(user_id)
