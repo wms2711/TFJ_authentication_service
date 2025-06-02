@@ -16,6 +16,15 @@ from sib_api_v3_sdk.rest import ApiException
 from app.config import settings
 from utils.logger import init_logger
 from fastapi import HTTPException, status
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+import os
+
+# Setup Jinja2
+template_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
+env = Environment(
+    loader=FileSystemLoader(template_dir),
+    autoescape=select_autoescape(['html', 'xml'])
+)
 
 # Configure logger
 logger = init_logger("EmailService")
@@ -29,44 +38,29 @@ class EmailService:
         """
         self.configuration = sib_api_v3_sdk.Configuration()
         self.configuration.api_key['api-key'] = settings.BREVO_API_KEY
+    
+    def _render_template(self, template_name: str, context: dict) -> str:
+        template = env.get_template(template_name)
+        return template.render(**context)
 
     def _build_reset_email_content(
             self, 
             link: str
         ) -> str:
-        return f"""
-            <p>Click below to reset your password:</p>
-            <a href="{link}">Reset Password</a>
-            <p>Link expires in 15 minutes.</p>
-        """
+        return self._render_template("reset_password.html", {"link": link})
     
     def _build_verify_email_content(
             self, 
             verification_link: str
         ) -> str:
-        return f"""
-            <p>Welcome! Please verify your email address:</p>
-            <a href="{verification_link}">Verify Email</a>
-            <p>This link will expire in 24 hours.</p>
-            <p>If you didn't create an account, please ignore this email.</p>
-        """
+        return self._render_template("verify_email.html", {"verification_link": verification_link})
     
     def _build_notification_email_content(
             self, 
             message: str
         ) -> str:
 
-        return f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6;">
-                <p>Hello,</p>
-                <p>{message}</p>
-                <p>If you did not expect this message, please ignore this email.</p>
-                <br/>
-                <p>Regards,<br/>The JobMatch Team</p>
-            </body>
-            </html>
-        """
+        return self._render_template("notification_email.html", {"message": message})
     
     async def _send_email(
             self, 
