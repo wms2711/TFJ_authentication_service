@@ -181,14 +181,7 @@ async def upload_my_resume(
     
     profile_service = ProfileService(db)
     upload_dir = "uploads/resumes"
-    try:
-        result = await profile_service.upload_resume(current_user.id, file, upload_dir)
-        return result
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error uploading resume: {str(e)}"
-        )
+    return await profile_service.upload_resume(current_user.id, file, upload_dir)
 
 
 @router.delete("/me/resume", status_code=status.HTTP_204_NO_CONTENT)

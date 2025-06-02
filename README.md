@@ -322,8 +322,11 @@ Example of the response:
 ```bash
 {
     "message": "Resume uploaded successfully",
-    "resume_url": "uploads/resumes/65b6b5d7-955a-484a-93f7-e1fb24866596.docx",
-    "filename": "test_doc.docx"
+    "resume_id": "7b7b31b1-a409-4692-a835-2499eeddce26",
+    "filename": "test_doc.docx",
+    "url": "uploads/resumes/1/20250602_060354_57dbae3048ab4d0aae5694eda70575ef.docx",
+    "is_current": true,
+    "uploaded_at": "2025-06-02T06:03:54.133088"
 }
 ```
 

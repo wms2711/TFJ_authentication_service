@@ -19,6 +19,7 @@ import uuid
 import aiofiles
 from datetime import datetime
 from utils.logger import init_logger
+from pathlib import Path
 
 # Configure logger
 logger = init_logger("ProfileService")
@@ -182,51 +183,77 @@ class ProfileService:
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="Invalid file upload"
             )
-
-        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Get user profile
+        result = await self.db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
+        db_profile = result.scalar_one_or_none()
+        if not db_profile:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="User profile not found, please create user profile first"
+            )
+        
+        # Create user-specific upload directory
+        user_upload_dir = Path(upload_dir) / str(user_id)
+        user_upload_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate unique filename
-        file_ext = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = os.path.join(upload_dir, unique_filename)
-        
+        file_ext = Path(file.filename).suffix.lower()
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        unique_filename = f"{timestamp}_{uuid.uuid4().hex}{file_ext}"
+        file_path = user_upload_dir / unique_filename
+
         try:
             # Save file asynchronously
             async with aiofiles.open(file_path, 'wb') as buffer:
                 content = await file.read()
                 await buffer.write(content)
-        
-            # Update profile
-            result = await self.db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
-            db_profile = result.scalar_one_or_none()
 
-            if not db_profile:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, 
-                    detail="User profile not found"
-                )
+            # Create new resume entry
+            new_resume = {
+                "id": str(uuid.uuid4()),
+                "url": str(file_path),
+                "filename": file.filename,
+                "size": len(content),
+                "type": file_ext[1:],
+                "uploaded_at": datetime.utcnow().isoformat(),
+                "is_current": True
+            }
 
-            if db_profile.resume_url and os.path.exists(db_profile.resume_url):
-                try:
-                    os.remove(db_profile.resume_url)
-                except Exception as e:
-                    logger.warning(f"Failed to delete resume file at {db_profile.resume_url}: {e}")
-            
-            db_profile.resume_url = file_path
-            db_profile.resume_original_filename = file.filename
+            # Initialize resumes array if doesn't exist and mark all other resumes as not current active
+            if not db_profile.resumes:
+                db_profile.resumes = []
+            for resume in db_profile.resumes:
+                resume["is_current"] = False
+
+            # If more than 10 most recent resume, remove older resumes
+            if len(db_profile.resumes) >= 10:
+                removed_resume = db_profile.resumes.pop(0)
+                old_file_path = Path(removed_resume["url"])
+                if old_file_path.exists():
+                    old_file_path.unlink()
+
+            db_profile.resumes.append(new_resume)
+            db_profile.current_resume_id = new_resume["id"]
             db_profile.updated_at = datetime.utcnow()
             try:
                 await self.db.commit()
             except Exception as db_exc:
                 await self.db.rollback()
+                # Clean up the uploaded file if DB commit failed
+                if file_path.exists():
+                    file_path.unlink()
                 logger.exception(f"Database commit failed for user_id {user_id}: {db_exc}", exc_info=True)
                 raise HTTPException(status_code=500, detail="Database commit failed")
             await self.db.refresh(db_profile)
         
             return {
                 "message": "Resume uploaded successfully",
-                "resume_url": file_path,
-                "filename": file.filename
+                "resume_id": new_resume["id"],
+                "filename": new_resume["filename"],
+                "url": new_resume["url"],
+                "is_current": True,
+                "uploaded_at": new_resume["uploaded_at"]
             }
         except HTTPException:
             raise

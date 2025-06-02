@@ -9,6 +9,7 @@ This model represents the 'user_profiles' table in the database.
 from sqlalchemy import Column, Integer, String, Text, JSON, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.mutable import MutableList
 from app.database.base import Base
 
 class UserProfile(Base):
@@ -53,8 +54,8 @@ class UserProfile(Base):
     skills = Column(JSON, nullable=True)  # List of skills with proficiency
     
     # Resume/CV
-    resume_url = Column(String(255), nullable=True)
-    resume_original_filename = Column(String(255), nullable=True)
+    resumes = Column(MutableList.as_mutable(JSON), default=list)  # Stores array of resume object, tracks in place mutations on hte resumes list
+    current_resume_id = Column(String, nullable=True)  # ID of currently active resume
     
     # Job Preferences
     preferred_job_titles = Column(JSON, nullable=True)
