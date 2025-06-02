@@ -2,12 +2,16 @@
 Email Service
 =============
 
-Service responsible for sending transactional emails such as password reset links using the Brevo (Sendinblue) API.
+Service responsible for sending transactional emails such as password reset links,
+verification emails, and general notifications using the Brevo (Sendinblue) API.
 
 Features:
 - Construct and send password reset email
+- Construct and send email verification link
+- Construct and send general email notifications
 - Uses Brevo transactional email API (via sib_api_v3_sdk)
-- Asynchronous and non-blocking implementation with `asyncio.to_thread` for thread safety
+- Jinja2 templating for consistent and customizable email formatting
+- Asynchronous and non-blocking implementation using `asyncio.to_thread`
 """
 
 import asyncio
@@ -40,6 +44,16 @@ class EmailService:
         self.configuration.api_key['api-key'] = settings.BREVO_API_KEY
     
     def _render_template(self, template_name: str, context: dict) -> str:
+        """
+        Render an HTML template with provided context using Jinja2.
+
+        Args:
+            template_name (str): Filename of the HTML template.
+            context (dict): Dictionary of variables to pass to the template.
+
+        Returns:
+            str: Rendered HTML content.
+        """
         template = env.get_template(template_name)
         return template.render(**context)
 
@@ -47,19 +61,45 @@ class EmailService:
             self, 
             link: str
         ) -> str:
+        """
+        Build HTML content for password reset email.
+
+        Args:
+            link (str): Password reset link.
+
+        Returns:
+            str: Rendered HTML email body.
+        """
         return self._render_template("reset_password.html", {"link": link})
     
     def _build_verify_email_content(
             self, 
             verification_link: str
         ) -> str:
+        """
+        Build HTML content for email verification.
+
+        Args:
+            verification_link (str): Email verification link.
+
+        Returns:
+            str: Rendered HTML email body.
+        """
         return self._render_template("verify_email.html", {"verification_link": verification_link})
     
     def _build_notification_email_content(
             self, 
             message: str
         ) -> str:
+        """
+        Build HTML content for a general notification email.
 
+        Args:
+            message (str): Message to display in the email.
+
+        Returns:
+            str: Rendered HTML email body.
+        """
         return self._render_template("notification_email.html", {"message": message})
     
     async def _send_email(
@@ -125,6 +165,9 @@ class EmailService:
 
         Returns:
             bool: True if email sent successfully, False otherwise.
+
+        Raises:
+            HTTPException: If the email could not be sent.
         """
         try:
             # Construct password reset link with query token
@@ -151,6 +194,9 @@ class EmailService:
             
         Returns:
             bool: True if email sent successfully, False otherwise.
+
+        Raises:
+            HTTPException: If the email could not be sent.
         """
         try:
             verification_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
@@ -177,6 +223,9 @@ class EmailService:
             
         Returns:
             bool: True if email sent successfully, False otherwise.
+
+        Raises:
+            HTTPException: If the email could not be sent.
         """
         try:
             # Define content and send email
