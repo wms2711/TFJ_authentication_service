@@ -77,6 +77,8 @@ python3 worker.py
 - Create notification - users fetch notifications with cache
 ###### V1.6.3
 - Mark as read - users read notification
+###### V1.6.5
+- Email formatting using Jinja
 
 # Add valid header for Authorization example
 | Key           | Value |
@@ -738,6 +740,10 @@ Response below as reference:
 │   │   ├── job.py                    # Job service
 │   │   ├── admin.py                  # Admin service
 │   │   └── notification.py           # Notification service
+│   ├── templates/
+│   │   ├── notification_email.html   # Email template for notifications
+│   │   ├── reset_password.html       # Email template for reset password
+│   │   └── verify_email.html         # Email template for verify email
 │   └── api/
 │       ├── __init__.py
 │       └── v1/
