@@ -17,9 +17,6 @@ class JobReport(Base):
     reported_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     status = Column(Enum(ReportStatus), default=ReportStatus.PENDING, nullable=False)
 
-    job_deleted = Column(Boolean, default=False, server_default='false')
-    reporter_deleted = Column(Boolean, default=False, server_default='false')
-
     # Relationships
     job = relationship("Job", back_populates="reports")
     reporter = relationship("User", foreign_keys=[reporter_id], back_populates="reported_jobs")
