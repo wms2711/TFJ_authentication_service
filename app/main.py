@@ -9,6 +9,7 @@ from app.database.models.profile import UserProfile as UserProfileDB
 from app.database.models.application import Application as ApplicationDB
 from app.database.models.job import Job as JobDB
 from app.database.models.notification import Notification as NotificationDB
+from app.database.models.report import ReportStatus as ReportStatusDB
 
 # Initialize the FastAPI application
 # --------------------------------

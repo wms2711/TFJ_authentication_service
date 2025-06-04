@@ -195,7 +195,7 @@ async def search_jobs(
 @router.post("/{job_id}/report", status_code=status.HTTP_200_OK)
 async def report_job(
     job_id: UUID,
-    reason: str = Query(..., min_length=10, max_length=500, description="Reason for reporting the job"),
+    reason: str = Query(..., min_length=0, max_length=500, description="Reason for reporting the job"),
     db: AsyncSession = Depends(async_get_db),
     current_user: User = Depends(get_current_user)
 ):

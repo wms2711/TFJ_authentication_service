@@ -140,3 +140,13 @@ class JobSearchResult(BaseModel):
     """
     meta: dict
     results: List[JobInDB]
+
+class JobReportInDb(BaseModel):
+    id: int
+    job_id: UUID4
+    reporter_id: Optional[int] = None
+    reason: str
+    reported_at: datetime
+
+    class Config:
+        from_attributes = True

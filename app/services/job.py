@@ -12,8 +12,10 @@ from sqlalchemy import select, and_
 from sqlalchemy.sql import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.job import Job
-from app.schemas.job import JobCreate, JobInDB, JobUpdate, JobSearchResult
+from app.database.models.report import JobReport
+from app.schemas.job import JobCreate, JobInDB, JobUpdate, JobSearchResult, JobReportInDb
 from app.database.models.enums.job import JobType, ExperienceLevel
+from app.database.models.enums.report import ReportStatus
 from app.services.redis import RedisService
 from fastapi import HTTPException, status
 from typing import Optional, List
@@ -422,7 +424,50 @@ class JobService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="Job not found"
                 )
-            pass
+            
+            
+            # Check if user already reported
+            existing_report = await self.db.execute(
+                select(JobReport)
+                .where(
+                    and_(
+                        JobReport.job_id == job_id,
+                        JobReport.reporter_id == reporter_id
+                    )
+                )
+            )
+            existing_report_result = existing_report.scalars().first()
+            if existing_report_result:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="You have already reported this job"
+                )
+            
+            # Create new report
+            report = JobReport(
+                job_id=job_id,
+                reporter_id=reporter_id,
+                reason=reason,
+                reported_at=datetime.utcnow(),
+                status=ReportStatus.PENDING
+            )
+            self.db.add(report)
+
+            # Imcrement report count for job
+            job.report_count = (job.report_count or 0) + 1
+
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger.error(f"Failed to create job report: {str(db_exc)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to process job report"
+                )
+            await self.db.refresh(report)
+            return JobReportInDb.model_validate(report)
+        
         except HTTPException:
             raise
         except Exception as e:
