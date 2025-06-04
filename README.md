@@ -758,12 +758,14 @@ Response below as reference:
 │   │       ├── enums/
 │   │       │    ├── __init__.py
 │   │       │    ├── application.py   # Models enums for application
-│   │       │    └── job.py           # Job enums for job model
+│   │       │    ├── job.py           # Job enums for job model
+│   │       │    └── report.py        # Report enums for job report model
 │   │       ├── user.py               # Database: User model
 │   │       ├── profile.py            # Database: User profile model
 │   │       ├── application.py        # Database: Job application model
 │   │       ├── job.py                # Database: Jobs model
-│   │       └── notification.py       # Database: Notification model
+│   │       ├── notification.py       # Database: Notification model
+│   │       └── report.py             # Database: Job report model
 │   ├── schemas/                      # Pydantic models
 │   │   ├── __init__.py
 │   │   ├── user.py                   # User Data Schemas
