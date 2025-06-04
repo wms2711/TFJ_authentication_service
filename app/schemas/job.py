@@ -142,6 +142,19 @@ class JobSearchResult(BaseModel):
     results: List[JobInDB]
 
 class JobReportInDb(BaseModel):
+    """
+    Full job report model for data persistence layer.
+
+    Fields:
+        id (int): Unique job report identifier.
+        job_id (UUID): Unique job identifier.
+        reporter_id (int): Unique reporter identifier.
+        reason (str): Reason for report.
+        reported_at (datetime): Time of report.
+
+    Config:
+        from_attributes: Enables ORM mode for SQLAlchemy compatibility.
+    """
     id: int
     job_id: UUID4
     reporter_id: Optional[int] = None
