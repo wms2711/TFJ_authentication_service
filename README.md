@@ -61,6 +61,8 @@ python3 worker.py
 - Fetch single job detail - if job is expired or not active, only admin or job creator can fetch the job
 ###### V1.4.4
 - Fetch all found filtered job detail - if job is expired or not active, only admin can fetch the job (upcoming update job creator can fetch also)
+###### V1.4.5
+- User report jobs
 
 ### V1.5.0
 - Added admin service
@@ -740,6 +742,24 @@ Response below as reference:
     "is_read": true
 }
 ```
+
+# Report jobs (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/job/b108cf6d-eb01-45cc-9dbc-e61e92efcd23/report?reason=1
+```
+Response below as reference:
+```bash
+{
+    "message":"Job reported successfully. Our team will review it shortly."
+}
+```
+```bash
+{
+    "detail": "You have already reported this job"
+}
+```
+
 # Project Structure
 ```authentication_service/
 ├── uploads/
