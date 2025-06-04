@@ -9,13 +9,14 @@ Handles all job-related operations including:
 - Searching for jobs (with filters, pagination, and Redis caching)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query,status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.job import JobCreate, JobUpdate, JobInDB, JobSearchResult
 from app.services.job import JobService
 from app.services.redis import RedisService
+from app.services.email import EmailService
 from app.database.models.enums.job import JobType, ExperienceLevel
 from app.database.session import get_db, async_get_db
 from app.database.models.user import User
@@ -57,7 +58,7 @@ async def create_job(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only employers or admins can post jobs"
         )
-    job_service = JobService(db=db, redis_service=None)
+    job_service = JobService(db=db, redis_service=None, email_service=None)
     return await job_service.create_job(job_data, creator_id=current_user.id)
 
 @router.patch("/{job_id}", response_model=JobInDB)
@@ -91,7 +92,7 @@ async def update_job(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only employers or admins can update jobs"
         )
-    job_service = JobService(db=db, redis_service=None)
+    job_service = JobService(db=db, redis_service=None, email_service=None)
     return await job_service.update_job(
         job_id=job_id,
         update_data=job_data,
@@ -118,7 +119,7 @@ async def get_specific_job(
     Raises:
         HTTPException: 404 if job not found.
     """
-    job_service = JobService(db=db, redis_service=None)
+    job_service = JobService(db=db, redis_service=None, email_service=None)
     return await job_service.get_specific_job(
         job_id=job_id,
         current_user=current_user
@@ -178,7 +179,7 @@ async def search_jobs(
     Returns:
         JobSearchResult: List of matched jobs and pagination metadata.
     """
-    job_service = JobService(db=db, redis_service=redis)
+    job_service = JobService(db=db, redis_service=redis, email_service=None)
     return await job_service.search_jobs(
         location=location,
         remote=remote,
@@ -194,6 +195,7 @@ async def search_jobs(
 
 @router.post("/{job_id}/report", status_code=status.HTTP_200_OK)
 async def report_job(
+    background_tasks: BackgroundTasks,
     job_id: UUID,
     reason: str = Query(..., min_length=0, max_length=500, description="Reason for reporting the job"),
     db: AsyncSession = Depends(async_get_db),
@@ -217,10 +219,13 @@ async def report_job(
     Raises:
         HTTPException: If job not found or other errors occur
     """
-    job_service = JobService(db=db, redis_service=None)
+    email_service = EmailService()
+    job_service = JobService(db=db, redis_service=None, email_service=email_service)
     await job_service.report_job(
         job_id=job_id,
         reporter_id=current_user.id,
-        reason=reason
+        reason=reason,
+        current_user=current_user,
+        background_tasks=background_tasks
     )
     return {"message": "Job reported successfully. Our team will review it shortly."}

@@ -17,12 +17,14 @@ from app.schemas.job import JobCreate, JobInDB, JobUpdate, JobSearchResult, JobR
 from app.database.models.enums.job import JobType, ExperienceLevel
 from app.database.models.enums.report import ReportStatus
 from app.services.redis import RedisService
-from fastapi import HTTPException, status
+from app.services.email import EmailService
+from fastapi import HTTPException, status, BackgroundTasks
 from typing import Optional, List
 from datetime import datetime, timedelta
 from utils.logger import init_logger
 from uuid import UUID
 from app.database.models.user import User
+from app.config import settings
 
 # Configure logger
 logger = init_logger("JobService")
@@ -33,7 +35,8 @@ class JobService:
     def __init__(
             self, 
             db: AsyncSession, 
-            redis_service: Optional[RedisService] = None
+            redis_service: Optional[RedisService] = None,
+            email_service: Optional[EmailService] = None
         ):
         """
         Initialize service with database session.
@@ -43,6 +46,7 @@ class JobService:
         """
         self.db = db
         self.redis = redis_service
+        self.email = email_service
 
     async def create_job(
         self, 
@@ -393,8 +397,10 @@ class JobService:
         self,
         job_id: UUID,
         reporter_id: int,
-        reason: str
-    )-> None:
+        reason: str,
+        current_user: User,
+        background_tasks: BackgroundTasks
+    )-> JobReportInDb:
         """
         Report a job posting for review by admins.
 
@@ -425,7 +431,6 @@ class JobService:
                     detail="Job not found"
                 )
             
-            
             # Check if user already reported
             existing_report = await self.db.execute(
                 select(JobReport)
@@ -453,7 +458,7 @@ class JobService:
             )
             self.db.add(report)
 
-            # Imcrement report count for job
+            # Increment report count for job
             job.report_count = (job.report_count or 0) + 1
 
             try:
@@ -465,6 +470,40 @@ class JobService:
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="Failed to process job report"
                 )
+            
+            
+            # Verify job creator exists and is employer/admin
+            creator = await self.db.execute(
+                select(User).where(User.id == job.creator_id)
+            )
+            creator_result = creator.scalars().first()
+
+            # Prepare notification details
+            notification_title = f"New report for job: {job.title}"
+            notification_message = (
+                f"Job ID: {job_id}\n"
+                f"Report Reason: {reason}\n"
+                f"Reported By: {current_user.full_name or current_user.username}\n"
+                f"Reported At: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+            )
+
+            # Send email notification to employer/admin creators
+            if self.email:
+                if creator_result and (creator_result.is_employer or creator_result.is_admin):
+                    background_tasks.add_task(
+                        self.email.send_email_notification,
+                        creator_result.email,
+                        notification_title,
+                        notification_message
+                    )
+                else:
+                    background_tasks.add_task(
+                        self.email.send_email_notification,
+                        settings.ADMIN_SENDER_EMAIL,
+                        notification_title,
+                        notification_message
+                    )
+            
             await self.db.refresh(report)
             return JobReportInDb.model_validate(report)
         
