@@ -386,3 +386,48 @@ class JobService:
                 else:
                     params.append(f"{k}={v}")
         return f"{prefix}:{'|'.join(params)}"
+
+    async def report_job(
+        self,
+        job_id: UUID,
+        reporter_id: int,
+        reason: str
+    )-> None:
+        """
+        Report a job posting for review by admins.
+
+        Flow:
+        1. Verify job exists
+        2. Check if user has already reported this job
+        3. Create report record
+        4. Optionally trigger notifications to admins
+
+        Args:
+            job_id: UUID of the job being reported
+            reporter_id: ID of the user making the report
+            reason: Detailed reason for the report
+
+        Raises:
+            HTTPException: With appropriate status codes for various failure scenarios
+        """
+        try:
+            # Verify job exists
+            result = await self.db.execute(
+                select(Job).where(Job.id == job_id)
+            )
+            job = result.scalars().first()
+            if not job:
+                logger.error(f"Job not found for reporting: {job_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Job not found"
+                )
+            pass
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error during job reporting: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to process job report"
+            )

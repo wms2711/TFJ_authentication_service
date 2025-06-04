@@ -46,11 +46,15 @@ class User(Base):
     # Relationship to profile (one-to-one)
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
+    # Relationship to reports
+    reported_jobs = relationship("JobReport", foreign_keys="[JobReport.reporter_id]", back_populates="reporter")
+    reviewed_reports = relationship("JobReport", foreign_keys="[JobReport.reviewed_by]", back_populates="reviewer")
+
     # Relationship to notification (one-to-one)
     # profile = relationship("Notification", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     # Relationship to application (Keep application table independent from user table)
-        # Reason: For tracking of applications even after user has self-delete profile
+        # Reason: For tracking of applications even after user has self-delete profile (create soft deletion)
     # application = relationship("Application", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def __repr__(self):

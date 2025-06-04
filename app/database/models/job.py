@@ -17,6 +17,7 @@ import uuid
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, Index, ARRAY, Text, Enum, Computed
 from sqlalchemy.dialects.postgresql import UUID, TSVECTOR
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 from app.database.models.enums.job import JobType, ExperienceLevel
 from app.database.base import Base
@@ -85,6 +86,10 @@ class Job(Base):
         Computed("to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,''))"),
         # Remove the persisted=True parameter
     )
+
+    # Report tracking (preserved even if job is deleted)
+    report_count = Column(Integer, default=0, server_default='0')
+    reports = relationship("JobReport", back_populates="job")
 
     # Indexes for query performance
     __table_args__ = (

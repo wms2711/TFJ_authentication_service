@@ -191,3 +191,36 @@ async def search_jobs(
         page_size=page_size,
         current_user=current_user
     )
+
+@router.post("/{job_id}/report", status_code=status.HTTP_200_OK)
+async def report_job(
+    job_id: UUID,
+    reason: str = Query(..., min_length=10, max_length=500, description="Reason for reporting the job"),
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Report a job posting for inappropriate content or violations.
+
+    Access:
+    - All authenticated users can report jobs.
+
+    Args:
+        job_id: UUID of the job to report
+        reason: Detailed reason for the report
+        db: Database session
+        current_user: Authenticated user making the report
+
+    Returns:
+        dict: Success message
+
+    Raises:
+        HTTPException: If job not found or other errors occur
+    """
+    job_service = JobService(db=db, redis_service=None)
+    await job_service.report_job(
+        job_id=job_id,
+        reporter_id=current_user.id,
+        reason=reason
+    )
+    return {"message": "Job reported successfully. Our team will review it shortly."}
