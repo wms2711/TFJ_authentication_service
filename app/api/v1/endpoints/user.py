@@ -7,7 +7,7 @@ Handles all user-related endpoints including:
 - Current user profile retrieval
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,13 +16,20 @@ from app.schemas.user import UserInDB, UserCreate, UserUpdate, UserVerificationR
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.services.email import EmailService
+from slowapi.util import get_remote_address
+from slowapi import Limiter
 from app.dependencies import get_user
 
 # Initialize router with prefix and tags for OpenAPI documentation
 router = APIRouter(prefix="/users", tags=["users"])
 
+# Define limiter
+limiter = Limiter(key_func=get_remote_address)
+
 @router.post("/", response_model=UserInDB)
+@limiter.limit("3/minute")
 async def create_user(
+    request: Request,
     user: UserCreate, 
     background_tasks: BackgroundTasks,
     # db: Session = Depends(get_db),
@@ -170,8 +177,10 @@ async def delete_user_me(
         )
     
 @router.get("/verify-email")
+@limiter.limit("5/minute")
 async def verify_email(
-    request: UserVerificationRequest,
+    request: Request,
+    form_data: UserVerificationRequest,
     db: AsyncSession = Depends(async_get_db)
 ):
     """
@@ -192,7 +201,7 @@ async def verify_email(
         HTTPException: 400 if token is invalid
     """
     auth_service = AuthService(db)
-    email = auth_service.verify_email_token(request.token)
+    email = auth_service.verify_email_token(form_data.token)
     if not email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

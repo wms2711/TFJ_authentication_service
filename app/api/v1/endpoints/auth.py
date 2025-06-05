@@ -8,7 +8,7 @@ Handles all authentication-related endpoints including:
 - Token validation
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from datetime import timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,8 @@ from app.services.user import UserService
 from app.services.email import EmailService
 from app.database.models.user import User
 from app.config import settings
+from slowapi.util import get_remote_address
+from slowapi import Limiter
 from utils.logger import init_logger
 
 # Configure logger
@@ -32,8 +34,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # OAuth2 scheme for token handling
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
+# Define limiter
+limiter = Limiter(key_func=get_remote_address)
+
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     # db: Session = Depends(get_db)
     db: AsyncSession = Depends(async_get_db)
@@ -128,8 +135,10 @@ async def check_token(
     return {"valid": True, "user": current_user.username}
 
 @router.post("/forgot-password")
+@limiter.limit("3/minute")
 async def forgot_password(
-    request: ForgotPasswordRequest,
+    request: Request,
+    form_data: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(async_get_db)
 ):
@@ -141,7 +150,7 @@ async def forgot_password(
     3. Sends email with reset link containing token.
     
     Args:
-        request: Contains user's email address.
+        form_data: Contains user's email address.
         background_tasks: FastAPI background tasks for sending email async.
         db: Async database session.
     
@@ -152,7 +161,7 @@ async def forgot_password(
     email_service = EmailService()
 
     # Check if user exists
-    user = await auth_service.get_user_by_email(request.email)
+    user = await auth_service.get_user_by_email(form_data.email)
     # Generate reset token
     reset_token = auth_service.create_reset_token(
         email=user.email,
@@ -172,8 +181,10 @@ async def forgot_password(
     return {"message": "Password reset link sent to your email"}
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
 async def reset_password(
-    request: ResetPasswordRequest,
+    request: Request,
+    form_data: ResetPasswordRequest,
     db: AsyncSession = Depends(async_get_db)
 ):
     """
@@ -186,7 +197,7 @@ async def reset_password(
     4. Invalidates the used token.
     
     Args:
-        request: Contains reset token and new password.
+        form_data: Contains reset token and new password.
         db: Async database session.
     
     Returns:
@@ -199,7 +210,7 @@ async def reset_password(
     user_service = UserService(db)
     try:
         # Verify token and get email
-        email = auth_service.verify_reset_token(request.token)
+        email = auth_service.verify_reset_token(form_data.token)
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -214,7 +225,7 @@ async def reset_password(
         # Update password - modified to use user_id instead of email
         await user_service.update_password(
             user_id=user.id,
-            new_password=request.new_password
+            new_password=form_data.new_password
         )
 
         # TODO: one-time password reset, won't trigger reset password twice

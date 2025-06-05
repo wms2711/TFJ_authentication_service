@@ -1,4 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from app.database.base import Base
 from app.database.session import engine
 from app.api.v1.endpoints import auth, user, profile, applications, job, admin, notification
@@ -19,6 +25,27 @@ app = FastAPI(
     title="Authentication Service",
     description="API for user authentication and management",
     version="1.0.0"
+)
+
+# Configure rate limiter
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# Exception handler for rate limit errors
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content={"detail": "Rate limit exceeded. Try again later."}
+    )
+
+# Add CORS middleware (adjust for security in production)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Database Table Creation
