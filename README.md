@@ -47,6 +47,8 @@ python3 worker.py
   _Reason: Our implementation is fire-and-forget (no need to await replies), so async overhead is unnecessary._
 ###### V1.2.2
 - Fetch status of application according to application id
+###### V1.2.5
+- Handle likes (swipe left) and dislikes (swipe left)
 
 ### V1.3.0
 - Added redis service
@@ -407,7 +409,8 @@ http://127.0.0.1:9000/application/
 Payload below as reference:
 ```bash
 {
-  "job_id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23"
+  "job_id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23",
+  "swipe_action": "dislike"  # or like
 }
 ```
 
