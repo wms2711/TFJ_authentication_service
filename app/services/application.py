@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.application import Application
-from app.database.models.enums.application import ApplicationStatus, MLTaskStatus, SwipeAction
+from app.database.models.enums.application import ApplicationStatus, MLTaskStatus, SwipeAction, RedisAction
 from app.services.redis import RedisService
 from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException, status
@@ -97,7 +97,7 @@ class ApplicationService:
                 if self.redis is None:
                     raise RuntimeError("Redis service not configured")
                 
-                self.redis.publish_application(app.id, user_id, job_id)
+                self.redis.publish_application(app.id, user_id, job_id, RedisAction.APPLY)
             except Exception as redis_exc:
                 # Log but don't fail the whole operation if Redis fails
                 logger.exception(f"Redis publish failed: {str(redis_exc)}")
@@ -341,3 +341,95 @@ class ApplicationService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to retrieve notifications"
             )
+        
+    async def withdraw_application(
+            self,
+            app_id: int,
+            user_id: int
+    ) -> ApplicationOut:
+        """
+        Withdraw an application by setting status to WITHDRAWN
+        
+        Args:
+            app_id: Application ID to withdraw
+            user_id: User ID for verification (already verified in router)
+        
+        Returns:
+            The updated application
+        
+        Raises:
+            ValueError: If application not found or already withdrawn
+        """
+        try:
+            # Get application first and check ownership
+            stmt = select(Application).where(Application.id == app_id)
+            result = await self.db.execute(stmt)
+            application = result.scalar_one_or_none()
+            if not application:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Application not found"
+                )
+            if application.user_id != user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Cannot withdraw another user's application"
+                )
+            
+            # Check if it is LIKE action
+            if application.action != SwipeAction.LIKE:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="This application is not permitted to redraw (DISLIKE application)"
+                )
+
+            # Check if application is already withdrawn
+            if application.status == ApplicationStatus.WITHDRAWN:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="You have already withdrawn"
+                )
+            
+            # Check if application is failed or rejected
+            if application.status in [ApplicationStatus.FAILED, ApplicationStatus.REJECTED]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="You cannot withdraw this application, this application is already processed"
+                )
+
+            # Withdraw
+            application.status = ApplicationStatus.WITHDRAWN
+            application.updated_at = datetime.utcnow()
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+                
+            await self.db.refresh(application)
+
+            if not application.id:
+                raise ValueError("Failed to retrieve application ID after insert")
+
+            # Publish to Redis
+            try:
+                if self.redis is None:
+                    raise RuntimeError("Redis service not configured")
+                
+                self.redis.publish_application(application.id, user_id, application.job_id, RedisAction.WITHDRAW)
+            except Exception as redis_exc:
+                # Log but don't fail the whole operation if Redis fails
+                logger.exception(f"Redis publish failed: {str(redis_exc)}")
+                # TODO: Consider whether to continue or raise, based on your requirements
+            return ApplicationOut.model_validate(application)
+
+        except HTTPException:
+            raise
+        except ValueError as ve:
+            await self.db.rollback()
+            logger.error(f"Validation error in withdraw_application: {str(ve)}")
+            raise  # Re-raise for the router to handle
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error in withdraw_application: {str(e)}", exc_info=True)
+            raise ValueError("Failed to withdraw application") from e

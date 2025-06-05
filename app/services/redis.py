@@ -16,6 +16,7 @@ from app.config import settings
 from utils.logger import init_logger
 from typing import Optional
 from uuid import UUID
+from app.database.models.enums.application import RedisAction
 
 # Configure logger
 logger = init_logger("RedisService")
@@ -40,13 +41,15 @@ class RedisService:
             decode_responses=True
         )
         self.stream_key = settings.REDIS_STREAM_KEY
+        self.withdraw_stream_key = settings.REDIS_WITHDRAW__STREAM_KEY
         self.pubsub_channel = "ml_requests"
 
     def publish_application(
             self, 
             application_id: int, 
             user_id: int, 
-            job_id: UUID
+            job_id: UUID,
+            action: RedisAction
         ):
         """
         Publish application event to Redis Pub/Sub and Stream.
@@ -74,8 +77,7 @@ class RedisService:
             message = {
                 "application_id": application_id,
                 "user_id": user_id,
-                "job_id": job_id_str,
-                "status": "pending"
+                "job_id": job_id_str
             }
 
             # Publish to both Pub/Sub and Streams
@@ -83,10 +85,20 @@ class RedisService:
                 self.pubsub_channel,
                 json.dumps(message)
             )
+            
+            # Check redis action
+            if action == RedisAction.APPLY:
+                stream_name = self.stream_key
+            
+            elif action == RedisAction.WITHDRAW:
+                stream_name = self.withdraw_stream_key
 
+            else:
+                logger.error("No correct actions specified for redis streams to post actions")
+                raise RuntimeError("No correct actions specified for redis streams to post actions")
             # Add to durable stream for tracking and history (local storage)
             self.client.xadd(
-                name=self.stream_key,
+                name=stream_name,
                 fields=message,
                 maxlen=10000  # Retain only the latest 10000 records
             )

@@ -29,6 +29,7 @@ class ApplicationStatus(str, Enum):
     FAILED = "failed"
     REJECTED = "rejected"  # Optional: If employers can reject
     NA = "NA"  # If user swipe left, no application was made
+    WITHDRAWN = "withdrawn"  # User withdraw their application
 
 class MLTaskStatus(str, Enum):
     """
@@ -59,3 +60,14 @@ class SwipeAction(str, Enum):
     """
     LIKE = "like"
     DISLIKE = "dislike"
+
+class RedisAction(str, Enum):
+    """
+    Represents user action for posting to redis.
+
+    Values:
+        APPLY: applying for job, send to redis for ml service.
+        WITHDRAW: withdrawing from the application, send to redis for ml service.
+    """
+    APPLY = "apply"
+    WITHDRAW = "withdraw"

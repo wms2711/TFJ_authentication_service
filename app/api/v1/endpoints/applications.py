@@ -18,7 +18,7 @@ from app.services.application import ApplicationService
 from app.services.redis import RedisService
 from app.dependencies import get_current_user
 from app.database.models.user import User
-from app.database.models.enums.application import SwipeAction
+from app.database.models.enums.application import SwipeAction, ApplicationStatus
 from app.database.session import get_db, async_get_db
 
 # Initialize router with prefix and tags for OpenAPI documentation
@@ -184,3 +184,33 @@ async def get_applications(
     """
     application_service = ApplicationService(db=db, redis=redis)
     return await application_service.get_user_applications(requesting_user=current_user.id)
+
+@router.patch("/{app_id}/withdraw", response_model=ApplicationOut)
+async def withdraw_application(
+    app_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db),
+    redis: RedisService = Depends(RedisService)
+):
+    """
+    Withdraw a job application (only for LIKE actions).
+    
+    Process:
+    1. Verify the application belongs to the current user
+    2. Check it's a LIKE action (can't withdraw dislikes)
+    3. Update status to WITHDRAWN
+    4. Optionally notify relevant systems
+    
+    Returns:
+        The withdrawn application
+    
+    Raises:
+        403: If trying to withdraw someone else's application
+        400: If trying to withdraw a DISLIKE action
+        404: If application not found
+    """
+    application_service = ApplicationService(db=db, redis=redis)
+    return await application_service.withdraw_application(
+        app_id=app_id,
+        user_id=current_user.id
+    )
