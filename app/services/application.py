@@ -209,6 +209,12 @@ class ApplicationService:
                     status_code=status.HTTP_404_NOT_FOUND, 
                     detail="Application not found"
                 )
+            print("WMMS", application.action, SwipeAction.LIKE)
+            if application.action != SwipeAction.LIKE:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, 
+                    detail="Application status cannot be updated for this application"
+                )
             # Apply updates
             for field, value in kwargs.items():
                 setattr(application, field, value)
