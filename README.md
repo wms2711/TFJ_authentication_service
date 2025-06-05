@@ -47,6 +47,8 @@ python3 worker.py
   _Reason: Our implementation is fire-and-forget (no need to await replies), so async overhead is unnecessary._
 ###### V1.2.2
 - Fetch status of application according to application id
+###### V1.2.3
+- Fetch swipe history of user
 ###### V1.2.5
 - Handle likes (swipe left) and dislikes (swipe left)
 
@@ -761,6 +763,37 @@ Response below as reference:
 {
     "detail": "You have already reported this job"
 }
+```
+
+# Fetch swipe history (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/application/
+```
+Response below as reference:
+```bash
+[
+    {
+        "job_id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23",
+        "id": 9,
+        "user_id": 1,
+        "status": "completed",
+        "ml_status": "success",
+        "created_at": "2025-06-05T02:09:20.929192",
+        "updated_at": "2025-06-05T02:10:26.375749",
+        "action": "like"
+    },
+    {
+        "job_id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23",
+        "id": 8,
+        "user_id": 1,
+        "status": "NA",
+        "ml_status": "NA",
+        "created_at": "2025-06-05T02:09:15.055088",
+        "updated_at": "2025-06-05T02:09:15.055094",
+        "action": "dislike"
+    }
+]
 ```
 
 # Project Structure

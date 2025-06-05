@@ -58,6 +58,7 @@ class ApplicationOut(ApplicationBase):
         status (str): Application lifecycle status
         created_at (datetime): Timestamp of application creation
         updated_at (datetime): Timestamp of last modification
+        action (SwipeAction): like or dislike 
     """
     id: int
     user_id: int
@@ -65,6 +66,7 @@ class ApplicationOut(ApplicationBase):
     ml_status: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    action: SwipeAction
     
     class Config:
         from_attributes = True

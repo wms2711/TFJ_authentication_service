@@ -11,6 +11,7 @@ Handles job application-related operations including:
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
 
 from app.schemas.application import ApplicationCreate, ApplicationOut, ApplicationUpdate
 from app.services.application import ApplicationService
@@ -157,3 +158,29 @@ async def get_application(
     return await application_service.get_application_status(
         app_id=app_id
     )
+
+@router.get("/", response_model=List[ApplicationOut])
+async def get_applications(
+    db: AsyncSession = Depends(async_get_db),
+    current_user: User = Depends(get_current_user),
+    redis: RedisService = Depends(RedisService)
+):
+    """
+    Fetch all applications for the currently logged-in user.
+
+    Flow:
+    1. Authenticates current user.
+    2. Retrieves all applications where user is the target using cache (if available) or database.
+
+    Args:
+        db (AsyncSession): Active async database session.
+        current_user (User): Current authenticated user object.
+
+    Returns:
+        List[ApplicationOut]: All applications for the current user.
+
+    Raises:
+        HTTPException: 401 if authentication fails.
+    """
+    application_service = ApplicationService(db=db, redis=redis)
+    return await application_service.get_user_applications(requesting_user=current_user.id)

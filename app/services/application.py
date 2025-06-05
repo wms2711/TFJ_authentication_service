@@ -7,6 +7,7 @@ Handles business logic for job application operations:
 - Application status updates
 """
 
+import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +16,7 @@ from app.database.models.enums.application import ApplicationStatus, MLTaskStatu
 from app.services.redis import RedisService
 from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException, status
-from typing import Optional, Unpack
+from typing import Optional, Unpack, List
 from datetime import datetime
 from uuid import UUID, uuid4
 from utils.logger import init_logger
@@ -281,4 +282,62 @@ class ApplicationService:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to retrieve application: {str(e)}"
+            )
+    
+    async def get_user_applications(
+            self,
+            requesting_user: int
+    ) -> List[ApplicationOut]:
+        """
+        Retrieve all applications for a specific user.
+
+        Args:
+            requesting_user (int): ID of the user whose applications to retrieve.
+
+        Returns:
+            List of ApplicationOut objects.
+
+        Raises:
+            ValueError: If no applications found (optional).
+        """
+        try:
+            # Generate cache key
+            cache_key = f"applications:user:{requesting_user}"
+
+            # Try cache first if Redis is available
+            if self.redis:
+                try:
+                    if cached := await self.redis.get_cache(cache_key):
+                        logger.debug(f"Cache hit for applications of user {requesting_user}")
+                        return [ApplicationOut.model_validate_json(n) for n in json.loads(cached)]
+                except Exception as e:
+                    logger.warning(f"Cache check failed, proceeding to DB: {str(e)}")
+
+            # Else query database
+            stmt = select(Application).where(
+                Application.user_id == requesting_user
+            ).order_by(Application.created_at.desc())
+            result = await self.db.execute(stmt)
+            applications = result.scalars().all()
+            logger.info(f"Found {len(applications)} applications")
+            serialized_applications = [ApplicationOut.model_validate(application) for application in applications]
+
+            # Update cache
+            if self.redis and applications:
+                try:
+                    await self.redis.set_cache(
+                        cache_key,
+                        json.dumps([n.model_dump_json() for n in serialized_applications]),
+                        ttl=300  # Cache for 5 minutes
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to update applications cache: {str(e)}")
+
+            return serialized_applications
+        
+        except Exception as e:
+            logger.error(f"Failed to retrieve notifications: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve notifications"
             )
