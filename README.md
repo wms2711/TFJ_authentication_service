@@ -49,6 +49,8 @@ python3 worker.py
 - Fetch status of application according to application id
 ###### V1.2.3
 - Fetch swipe history of user
+###### V1.2.4
+- User withdraw application
 ###### V1.2.5
 - Handle likes (swipe left) and dislikes (swipe left)
 
@@ -794,6 +796,25 @@ Response below as reference:
         "action": "dislike"
     }
 ]
+```
+
+# User withdraw application (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `PATCH` request to:
+```bash
+http://127.0.0.1:9000/application/10/withdraw
+```
+Response below as reference:
+```bash
+{
+    "job_id": "b108cf6d-eb01-45cc-9dbc-e61e92efcd23",
+    "id": 10,
+    "user_id": 2,
+    "status": "withdrawn",
+    "ml_status": "queued",
+    "created_at": "2025-06-05T02:33:16.373071",
+    "updated_at": "2025-06-05T03:32:08.594992",
+    "action": "like"
+}
 ```
 
 # Project Structure
