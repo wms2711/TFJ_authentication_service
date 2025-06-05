@@ -17,6 +17,7 @@ from app.services.application import ApplicationService
 from app.services.redis import RedisService
 from app.dependencies import get_current_user
 from app.database.models.user import User
+from app.database.models.enums.application import SwipeAction
 from app.database.session import get_db, async_get_db
 
 # Initialize router with prefix and tags for OpenAPI documentation
@@ -35,15 +36,15 @@ async def create_application(
     redis: RedisService = Depends(RedisService)
 ):
     """
-    Submit a new job application.
+    Submit a new job application (swipe left or right).
 
     Process:
     1. Receives job ID from the request body.
     2. Creates an application entry associated with the authenticated user.
-    3. Publishes the application ID to a Redis stream for asynchronous ML processing.
+    3. If swipe right - Publishes the application ID to a Redis stream for asynchronous ML processing.
 
     Args:
-        app_data (ApplicationCreate): Contains the job ID to apply for.
+        app_data (ApplicationCreate): Contains the job ID and swipe action.
         current_user (User): Authenticated user obtained via JWT.
         db (AsyncSession): Asynchronous SQLAlchemy database session.
         redis (RedisService): Redis service used to publish messages to the stream.
@@ -57,10 +58,23 @@ async def create_application(
     application_service = ApplicationService(db=db, redis=redis)
 
     try:
-        application = await application_service.create_application(
-            user_id=current_user.id,
-            job_id=app_data.job_id
-        )
+        # If user swipe right (apply for job)
+        if app_data.swipe_action == SwipeAction.LIKE:
+            application_right = await application_service.create_application(
+                user_id=current_user.id,
+                job_id=app_data.job_id,
+                action=app_data.swipe_action
+            )
+            return application_right
+        
+        # If user swipe left (do not apply for job, keep track of this swipe)
+        elif app_data.swipe_action == SwipeAction.DISLIKE:
+            application_left = await application_service.record_swipe_history(
+                user_id=current_user.id,
+                job_id=app_data.job_id,
+                action=app_data.swipe_action
+            )
+            return application_left
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
@@ -71,8 +85,6 @@ async def create_application(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail="Failed to create application"
         )
-
-    return application
 
 @router.patch("/{app_id}", response_model=ApplicationOut)
 async def update_application(

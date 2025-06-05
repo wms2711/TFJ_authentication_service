@@ -21,12 +21,14 @@ class ApplicationStatus(str, Enum):
         COMPLETED: Application process has been successfully completed (e.g., hired).
         FAILED: Application encountered an error and could not be processed.
         REJECTED: Application was reviewed and not selected by the employer.
+        NA: No application was made because user swiped left.
     """
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
     REJECTED = "rejected"  # Optional: If employers can reject
+    NA = "NA"  # If user swipe left, no application was made
 
 class MLTaskStatus(str, Enum):
     """
@@ -37,8 +39,23 @@ class MLTaskStatus(str, Enum):
         RUNNING: Task is currently being executed.
         SUCCESS: Task completed successfully.
         FAILED: Task failed due to an error.
+        NA: No application was made because user swiped left.
     """
     QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+    NA = "NA"  # If user swipe left, no application was made
+
+class SwipeAction(str, Enum):
+    """
+    Represents user swipe left (dislike) or swipe right (like).
+
+    Values:
+        LIKE: Swipe right - creates application.
+        DISLIKE: swipe left - track in history.
+        SUCCESS: Task completed successfully.
+        FAILED: Task failed due to an error.
+    """
+    LIKE = "like"
+    DISLIKE = "dislike"

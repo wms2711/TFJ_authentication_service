@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.application import Application
+from app.database.models.enums.application import ApplicationStatus, MLTaskStatus, SwipeAction
 from app.services.redis import RedisService
 from app.schemas.application import ApplicationOut, ApplicationUpdate
 from fastapi import HTTPException, status
@@ -39,7 +40,8 @@ class ApplicationService:
     async def create_application(
             self, 
             user_id: int, 
-            job_id: UUID
+            job_id: UUID,
+            action: SwipeAction
         ) -> ApplicationOut:
         """
         Submit a new job application.
@@ -73,11 +75,11 @@ class ApplicationService:
             app = Application(
                 user_id=user_id,
                 job_id=job_id,
-                status="pending"
+                action=action,
+                status=ApplicationStatus.PENDING,
+                ml_status=MLTaskStatus.QUEUED,
             )
-            
             self.db.add(app)
-            
             try:
                 await self.db.commit()
             except Exception as db_exc:
@@ -110,7 +112,62 @@ class ApplicationService:
             await self.db.rollback()
             logger.exception(f"Unexpected error in create_application: {str(e)}", exc_info=True)
             raise ValueError("Failed to create application") from e
-    
+
+    async def record_swipe_history(
+        self,
+        user_id: int,
+        job_id: UUID,
+        action: SwipeAction
+    ) -> None:
+        """
+        Keep track of a action for swipe left.
+
+        Flow:
+        1. Creates a new `Application` DB record
+        2. Commits to database
+
+        Args:
+            user_id: ID of the user submitting the application
+            job_id: External job identifier (from job board or catalog)
+
+        Returns:
+            ApplicationOut: Serialized application details
+
+        Raises:
+            ValueError: For invalid inputs or database operations
+            RuntimeError: If Redis is required but not configured
+            HTTPException: Should be raised by the router for HTTP status codes
+        """
+        try:
+            # Create and save swipe left application
+            app = Application(
+                user_id=user_id,
+                job_id=job_id,
+                action=action,
+                status=ApplicationStatus.NA,
+                ml_status=MLTaskStatus.NA,
+            )
+            self.db.add(app)
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+                
+            await self.db.refresh(app)
+            if not app.id:
+                raise ValueError("Failed to retrieve application ID after insert")
+            return ApplicationOut.model_validate(app)
+        
+        except ValueError as ve:
+            await self.db.rollback()
+            logger.error(f"Validation error in create_application: {str(ve)}")
+            raise  # Re-raise for the router to handle
+        except Exception as e:
+            await self.db.rollback()
+            logger.exception(f"Unexpected error in create_application: {str(e)}", exc_info=True)
+            raise ValueError("Failed to create application") from e
+
     async def update_application_status(
             self, 
             app_id: int, 

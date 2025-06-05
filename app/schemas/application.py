@@ -11,7 +11,7 @@ Defines the data structures for job application management across layers:
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
-from app.database.models.enums.application import ApplicationStatus, MLTaskStatus
+from app.database.models.enums.application import ApplicationStatus, MLTaskStatus, SwipeAction
 from uuid import UUID
 
 class ApplicationBase(BaseModel):
@@ -36,8 +36,11 @@ class ApplicationCreate(ApplicationBase):
 
     Inherits:
         ApplicationBase
+    
+    Fields:
+        swipe_action (SwipeAction): swipe left or right 
     """
-    pass
+    swipe_action: SwipeAction
     class Config:
         extra = "forbid"  # Disallow unknown fields
 
