@@ -209,7 +209,6 @@ class ApplicationService:
                     status_code=status.HTTP_404_NOT_FOUND, 
                     detail="Application not found"
                 )
-            print("WMMS", application.action, SwipeAction.LIKE)
             if application.action != SwipeAction.LIKE:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN, 
