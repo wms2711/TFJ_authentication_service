@@ -16,6 +16,7 @@ from app.database.models.profile import UserProfile
 from app.database.models.application import Application
 from app.database.models.notification import Notification
 from app.database.models.report import JobReport
+from app.database.models.chat import ChatMessage
 # ... import all other models ...
 
 config = context.config
