@@ -356,9 +356,6 @@ class ApplicationService:
         
         Returns:
             The updated application
-        
-        Raises:
-            ValueError: If application not found or already withdrawn
         """
         try:
             # Get application first and check ownership

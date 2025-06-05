@@ -22,6 +22,7 @@ class ApplicationStatus(str, Enum):
         FAILED: Application encountered an error and could not be processed.
         REJECTED: Application was reviewed and not selected by the employer.
         NA: No application was made because user swiped left.
+        WITHDRAWN: User withdraw their application
     """
     PENDING = "pending"
     PROCESSING = "processing"

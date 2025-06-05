@@ -199,15 +199,16 @@ async def withdraw_application(
     1. Verify the application belongs to the current user
     2. Check it's a LIKE action (can't withdraw dislikes)
     3. Update status to WITHDRAWN
-    4. Optionally notify relevant systems
+    4. Notify ml service
     
     Returns:
         The withdrawn application
     
     Raises:
         403: If trying to withdraw someone else's application
-        400: If trying to withdraw a DISLIKE action
+        400: If trying to withdraw a DISLIKE action or application is already withdrawn or processed
         404: If application not found
+        500: Other errors
     """
     application_service = ApplicationService(db=db, redis=redis)
     return await application_service.withdraw_application(
