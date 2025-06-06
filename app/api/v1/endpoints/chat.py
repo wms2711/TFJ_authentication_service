@@ -15,7 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.session import async_get_db
 from app.dependencies import get_current_user
 from app.database.models.user import User
-from app.services.chat import ChatService, ConnectionManager
+from app.services.auth import AuthService
+from app.services.chat import ChatService
 from app.schemas.chat import ChatUser, MessageOut, MessageResponse, MessageCreateHTTP
 
 # Initialize router with prefix and tags for OpenAPI documentation
@@ -24,8 +25,6 @@ router = APIRouter(
     tags=["chat"],
     responses={404: {"description": "Not found"}},
 )
-
-manager = ConnectionManager()
 
 @router.get("/conversations", response_model=List[ChatUser])
 async def get_chat_list(
@@ -55,3 +54,32 @@ async def send_message_http(
     """HTTP fallback for sending messages when WebSocket is not available"""
     chat_service = ChatService(db)
     return await chat_service.send_message_http(message, current_user.id)
+
+@router.websocket("/ws/{user_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    user_id: int,
+    db: AsyncSession = Depends(async_get_db)
+):
+    """WebSocket endpoint for real-time chat communication"""
+    chat_service = ChatService(db=db)
+
+    # Verify token
+    token = websocket.headers.get("Authorization")
+    if not token or not token.startswith("Bearer "):
+        await websocket.close(code=1008)
+        return
+    token = token[7:]
+    auth_service = AuthService(db=db)
+    verify_user = auth_service.verify_token(token=token)
+    if not verify_user:
+        await websocket.close(code=1008)
+        return
+    
+    # Verify user
+    user = await auth_service.get_user(username=verify_user.get("sub"))
+    if str(user_id) != str(user.id):
+        await websocket.close(code=1008)
+        return
+
+    await chat_service.handle_websocket_connection(websocket, user_id)

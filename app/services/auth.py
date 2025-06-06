@@ -442,6 +442,32 @@ class AuthService:
             logger.exception(f"Unexpected error verifying email token: {e}")
 
         return None
+    
+    def verify_token(
+            self, 
+            token: str
+        ) -> str | None:
+        """
+        Verify token if valid.
+        
+        Args:
+            token (str): JWT verification token
+            
+        Returns:
+            str | None: token payload if token is valid, None otherwise
+        """
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            return payload
+        
+        except ExpiredSignatureError:
+            logger.warning("Token expired.")
+        except JWTError as e:
+            logger.error(f"JWT error during token verification: {e}")
+        except Exception as e:
+            logger.exception(f"Unexpected error verifying token: {e}")
+
+        return None
         
     def generate_verification_token(
             self, 
