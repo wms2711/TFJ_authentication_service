@@ -98,6 +98,8 @@ python3 worker.py
 - Fetch specific chat for that user
 ###### V1.7.3
 - Websocket connections for this user
+###### V1.7.4
+- Mark as read
 
 # Add valid header for Authorization example
 | Key           | Value |
@@ -917,6 +919,21 @@ Send message below as reference:
     "data": {
         "receiver_id": 2,
         "content": "Hi there!"
+    }
+}
+```
+
+# WebSocket connection for user with mark as read (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Connect a `WS` to:
+```bash
+ws://127.0.0.1:9000/chat/ws/2
+```
+Send message below as reference (user 2 read messages from user 4):
+```bash
+{
+    "type": "read_receipt",
+    "data": {
+        "receiver_id": 4
     }
 }
 ```
