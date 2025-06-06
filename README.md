@@ -88,6 +88,17 @@ python3 worker.py
 ###### V1.6.5
 - Email formatting using Jinja
 
+### V1.7.0
+- Added chat service
+###### V1.7.0
+- Fetch all chats for that user
+###### V1.7.1
+- Send http message (for backup and fallback)
+###### V1.7.2
+- Fetch specific chat for that user
+###### V1.7.3
+- Websocket connections for this user
+
 # Add valid header for Authorization example
 | Key           | Value |
 |---------------|-------|
@@ -817,6 +828,99 @@ Response below as reference:
 }
 ```
 
+# Fetch all chats for this user (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/chat/conversations
+```
+Response below as reference:
+```bash
+[
+    {
+        "id": 1,
+        "username": "wms27111",
+        "is_online": false
+    },
+    {
+        "id": 2,
+        "username": "wms2711",
+        "is_online": false
+    }
+]
+```
+
+# Fetch specified chats for this user (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `GET` request to:
+```bash
+http://127.0.0.1:9000/chat/conversations/1
+```
+Response below as reference:
+```bash
+[
+    {
+        "id": 5,
+        "sender_id": 1,
+        "receiver_id": 3,
+        "content": "Hello you there?",
+        "sent_at": "2025-06-06T00:54:38.634105",
+        "read_at": null
+    },
+    {
+        "id": 42,
+        "sender_id": 3,
+        "receiver_id": 1,
+        "content": "Hi!",
+        "sent_at": "2025-06-06T03:10:04.628714",
+        "read_at": null
+    }
+]
+```
+
+# Post http message for backup for fallback (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Send a `POST` request to:
+```bash
+http://127.0.0.1:9000/chat/messages
+```
+Body below as reference:
+```bash
+{
+    "sender_id": "3",
+    "receiver_id": "1",
+    "content": "Hello yes i am"
+}
+```
+Response below as reference:
+```bash
+{
+    "success": true,
+    "message": {
+        "id": 45,
+        "sender_id": 3,
+        "receiver_id": 1,
+        "content": "Hello yes i am",
+        "sent_at": "2025-06-06T05:05:10.797249",
+        "read_at": null
+    },
+    "is_ws_connected": false
+}
+```
+
+# WebSocket connection for user (to test this, you should /auth/login first and input the response from login into Header "Authorization")
+Connect a `WS` to:
+```bash
+ws://127.0.0.1:9000/chat/ws/2
+```
+Send message below as reference:
+```bash
+{
+    "type": "message",
+    "data": {
+        "receiver_id": 2,
+        "content": "Hi there!"
+    }
+}
+```
+
 # Project Structure
 ```authentication_service/
 ├── uploads/
@@ -842,7 +946,8 @@ Response below as reference:
 │   │       ├── application.py        # Database: Job application model
 │   │       ├── job.py                # Database: Jobs model
 │   │       ├── notification.py       # Database: Notification model
-│   │       └── report.py             # Database: Job report model
+│   │       ├── report.py             # Database: Job report model
+│   │       └── chat.py               # Database: Chat message model
 │   ├── schemas/                      # Pydantic models
 │   │   ├── __init__.py
 │   │   ├── user.py                   # User Data Schemas
@@ -850,7 +955,8 @@ Response below as reference:
 │   │   ├── profile.py                # User Profile Data Schemas
 │   │   ├── application.py            # Job Application Data Schemas
 │   │   ├── job.py                    # Jobs Data Schemas
-│   │   └── notification.py           # Notification Data Schemas
+│   │   ├── notification.py           # Notification Data Schemas
+│   │   └── chat.py                   # Chat Data Schemas
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── auth.py                   # Auth service
@@ -862,7 +968,8 @@ Response below as reference:
 │   │   ├── email.py                  # Email service
 │   │   ├── job.py                    # Job service
 │   │   ├── admin.py                  # Admin service
-│   │   └── notification.py           # Notification service
+│   │   ├── notification.py           # Notification service
+│   │   └── chat.py                   # Chat service
 │   ├── templates/
 │   │   ├── notification_email.html   # Email template for notifications
 │   │   ├── reset_password.html       # Email template for reset password
@@ -879,7 +986,8 @@ Response below as reference:
 │               ├── applications.py   # Job Application router
 │               ├── job.py            # Jobs router
 │               ├── admin.py          # Admin router
-│               └── notification.py   # Notification router
+│               ├── notification.py   # Notification router
+│               └── chat.py           # Chat router
 ├── requirements.txt
 ├── .env                              # Environment variables
 ├── run.py                            # Application entry point for dev
