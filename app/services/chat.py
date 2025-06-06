@@ -18,38 +18,91 @@ logger_chat = init_logger("ChatService")
 logger_ws_connection = init_logger("ConnectionManager")
 
 class ConnectionManager:
+    """Manages active WebSocket connections for real-time chat functionality."""
     _instance = None
 
     def __new__(cls):
+        """Singleton pattern implementation ensuring only one instance exists."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance.active_connections = {}
         return cls._instance
     
     def __init__(self):
+        """Initialize the connection manager (empty for singleton pattern)."""
         pass
 
     @property
     def connected_user_ids(self) -> List[int]:
+        """
+        Get list of currently connected user IDs.
+        
+        Returns:
+            List[int]: User IDs of all currently connected users
+        """
         return list(self.active_connections.keys())
 
     async def connect(self, websocket: WebSocket, user_id: int):
+        """
+        Register a new WebSocket connection for a user.
+        
+        Flow:
+        1. Accept the WebSocket connection
+        2. Add to active_connections dictionary
+            - Creates new list if first connection for user
+            - Appends to existing list if user already has connections
+
+        Args:
+            websocket (WebSocket): The WebSocket connection to register
+            user_id (int): ID of the connecting user
+
+        Note:
+            - Same user can have multiple active connections (different devices/tabs)
+        """
         await websocket.accept()
         if user_id not in self.active_connections:
             self.active_connections[user_id] = []
         self.active_connections[user_id].append(websocket)
-        print("ADDED", self.active_connections)
-
+        logger_ws_connection.info(f"ADDED new WS connection for user_id={user_id}, connection list: {self.active_connections}"
+)
     def disconnect(self, user_id: int, websocket: WebSocket = None):
+        """
+        Remove a WebSocket connection from active connections.
+        
+        Behavior:
+        - If websocket specified: Remove only that specific connection
+            - If last connection for user, remove user entry entirely
+        - If no websocket specified: Remove all connections for user
+
+        Args:
+            user_id (int): ID of the disconnecting user
+            websocket (WebSocket, optional): Specific connection to remove
+        """
         if websocket:
             self.active_connections[user_id].remove(websocket)
             if not self.active_connections[user_id]:  # No remaining connections
                 del self.active_connections[user_id]
         else:
             self.active_connections.pop(user_id, None)
-        print("DELETE CONNECTION", user_id, "NEW conntion list is", self.active_connections)
+        logger_ws_connection.info(f"DELETE CONNECTION for user={user_id}, connection list: {self.active_connections}")
 
     async def send_to_user(self, user_id: int, message: WsMessage):
+        """
+        Deliver a message to all active connections for a user.
+        
+        Flow:
+        1. Check if user has active connections
+        2. Attempt delivery to each connection
+        3. Clean up failed connections
+
+        Args:
+            user_id (int): Recipient user ID
+            message (WsMessage): Message to deliver
+
+        Note:
+            - Silently handles failed deliveries (removes broken connections)
+            - Message will be lost if no active connections exist
+        """
         if user_id not in self.active_connections:
             return
 
@@ -66,7 +119,6 @@ class ConnectionManager:
         # Clean up broken sockets
         for ws in disconnected_sockets:
             self.disconnect(user_id, websocket=ws)
-
 
 class ChatService:
     """Service for managing chat conversations between users."""
