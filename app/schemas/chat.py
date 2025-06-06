@@ -26,3 +26,11 @@ class MessageOut(MessageBase):
 class WsMessage(BaseModel):
     type: str  # "message", "status", "read_receipt"
     data: dict
+
+class MessageCreateHTTP(MessageCreate):
+    sender_id: int  # For HTTP where we can't get it from WS connection
+
+class MessageResponse(BaseModel):
+    success: bool
+    message: MessageOut
+    is_ws_connected: bool

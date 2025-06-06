@@ -16,7 +16,7 @@ from app.database.session import async_get_db
 from app.dependencies import get_current_user
 from app.database.models.user import User
 from app.services.chat import ChatService, ConnectionManager
-from app.schemas.chat import ChatUser, MessageOut
+from app.schemas.chat import ChatUser, MessageOut, MessageResponse, MessageCreateHTTP
 
 # Initialize router with prefix and tags for OpenAPI documentation
 router = APIRouter(
@@ -43,5 +43,15 @@ async def get_chat_history(
     db: AsyncSession = Depends(async_get_db)
 ):
     """Get message history between current user and another user"""
-    service = ChatService(db)
-    return await service.get_user_messages(current_user.id, user_id)
+    chat_service = ChatService(db)
+    return await chat_service.get_user_messages(current_user.id, user_id)
+
+@router.post("/messages", response_model=MessageResponse)
+async def send_message_http(
+    message: MessageCreateHTTP,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(async_get_db)
+):
+    """HTTP fallback for sending messages when WebSocket is not available"""
+    chat_service = ChatService(db)
+    return await chat_service.send_message_http(message, current_user.id)
