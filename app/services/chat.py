@@ -554,10 +554,57 @@ class ChatService:
         except Exception as e:
             logger_chat.exception(f"Failed to handle chat message from user_id={sender_id} to user_id={receiver_id}: {e}")
 
-    async def _handle_read_receipt(self, receiver_id: int, receipt_data: dict):
-        """Process a read receipt received via WebSocket"""
-        await self.mark_messages_as_read(
-            sender_id=receipt_data["sender_id"],
-            receiver_id=receiver_id
-        )
+    async def _mark_messages_as_read(
+            self,
+            sender_id: int,
+            receiver_id: int
+    ) -> int:
+        try:
+            # Get current time
+            now = datetime.utcnow()
 
+            # Find all unread messages from this sender to current user
+            stmt = select(ChatMessage).where(
+                and_(
+                    ChatMessage.sender_id == sender_id,
+                    ChatMessage.receiver_id == receiver_id,
+                    ChatMessage.read_at.is_(None)  # Only unread messages
+                )
+            )
+            result = await self.db.execute(stmt)
+            messages = result.scalars().all()
+
+            # If all messages are read or no message found
+            if not messages:
+                logger_chat.info(f"No unread messages found from {sender_id} to {receiver_id}")
+                return 0
+            
+            # Update read_at timestamp for all found messages
+            for message in messages:
+                message.read_at = now
+            try:
+                await self.db.commit()
+            except Exception as db_exc:
+                await self.db.rollback()
+                logger_chat.error(f"DB commit failed while marking messages as read: {str(db_exc)}")
+                raise ValueError(f"Database commit failed: {str(db_exc)}")
+            count = len(messages)
+            logger_chat.info(f"Marked {count} messages as read from {sender_id} to {receiver_id}")
+            return count
+        
+        except ValueError:
+            raise
+        except Exception as e:
+            await self.db.rollback()
+            logger_chat.exception(f"Failed to mark messages as read from {sender_id} to {receiver_id}: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update message read status"
+            )
+
+    async def _handle_read_receipt(self, sender_id: int, message_data: dict):
+        """Process a read receipt received via WebSocket"""
+        await self._mark_messages_as_read(
+            sender_id=message_data.get("receiver_id"),
+            receiver_id=sender_id
+        )
