@@ -67,6 +67,7 @@ python3 worker.py
 - Fetch single job detail - if job is expired or not active, only admin or job creator can fetch the job
 ###### V1.4.4
 - Fetch all found filtered job detail - if job is expired or not active, only admin can fetch the job (upcoming update job creator can fetch also)
+- After user swiped the job, they wont see the job in their feed again during fetch
 ###### V1.4.5
 - User report jobs
 
