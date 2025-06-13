@@ -1,5 +1,10 @@
 # Purpose of this service
-This service handles authentication (login), user information (storing information like personal info, professional info, education, work experience, skills, resume, job perference etc) and job application (swipe right send to redis pub/sub)
+- Authentication service (login etc)
+- User credentials and User information service (resume, job perference etc)
+- Job service (retrieve job cards, swipe history etc)
+- Admin controls service (deactivate users, update user status etc)
+- Notification service (currently using email notification)
+- Chat service (fetch chats, send messages, WebSocket connection for users etc)
 
 # Quick Start
 ## Installation (virtual environment) for Linux
