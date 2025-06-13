@@ -12,6 +12,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.sql import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models.job import Job
+from app.database.models.application import Application
 from app.database.models.report import JobReport
 from app.schemas.job import JobCreate, JobInDB, JobUpdate, JobSearchResult, JobReportInDb
 from app.database.models.enums.job import JobType, ExperienceLevel
@@ -283,7 +284,8 @@ class JobService:
                 skills=skills,
                 page=page,
                 page_size=page_size,
-                is_admin=getattr(current_user, "is_admin", False)
+                is_admin=getattr(current_user, "is_admin", False),
+                user_id=getattr(current_user, "id", None)
             )
 
             try:
@@ -323,6 +325,16 @@ class JobService:
                 query = query.where(
                     Job.is_active == True,
                     Job.expires_at >= datetime.utcnow()
+                )
+
+            # Exclude jobs that user already swiped
+            if current_user and current_user.id:
+                swiped_jobs = select(Application.job_id).where(
+                    Application.user_id == current_user.id
+                )
+                # Use the select() directly in not_in()
+                query = query.where(
+                    Job.id.not_in(swiped_jobs)
                 )
 
             # Get total count 
