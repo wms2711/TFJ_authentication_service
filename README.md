@@ -1,4 +1,5 @@
 # Purpose of this service
+Serves as a back-end (currently monolithic architecture) for the Tinder for job app. It handles:
 - Authentication service (login etc)
 - User credentials and User information service (resume, job perference etc)
 - Job service (retrieve job cards, swipe history etc)
